@@ -1,0 +1,9 @@
+.ipynb_checkpoints
+__pycache__
+cluster/logs/
+data/
+figures/*
+output/
+results/
+configs/
+.DS_Store

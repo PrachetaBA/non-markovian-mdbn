@@ -1,0 +1,55 @@
+name: mdbn-pyagrum
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - _libgcc_mutex=0.1=conda_forge
+  - _openmp_mutex=4.5=2_gnu
+  - bzip2=1.0.8=hd590300_5
+  - ca-certificates=2024.2.2=hbcca054_0
+  - ld_impl_linux-64=2.40=h41732ed_0
+  - libffi=3.4.2=h7f98852_5
+  - libgcc-ng=13.2.0=h807b86a_5
+  - libgomp=13.2.0=h807b86a_5
+  - libnsl=2.0.1=hd590300_0
+  - libsqlite=3.45.1=h2797004_0
+  - libuuid=2.38.1=h0b41bf4_0
+  - libxcrypt=4.4.36=hd590300_1
+  - libzlib=1.2.13=hd590300_5
+  - ncurses=6.4=h59595ed_2
+  - openssl=3.2.1=hd590300_0
+  - pip=24.0=pyhd8ed1ab_0
+  - python=3.10.13=hd12c33a_1_cpython
+  - readline=8.2=h8228510_1
+  - setuptools=69.1.1=pyhd8ed1ab_0
+  - tk=8.6.13=noxft_h4845f30_101
+  - tzdata=2024a=h0c530f3_0
+  - wheel=0.42.0=pyhd8ed1ab_0
+  - xz=5.2.6=h166bdaf_0
+  - pip:
+    - contourpy==1.2.0
+    - cycler==0.12.1
+    - exceptiongroup==1.2.0
+    - fonttools==4.49.0
+    - iniconfig==2.0.0
+    - kiwisolver==1.4.5
+    - matplotlib==3.8.3
+    - numpy==1.26.4
+    - packaging==23.2
+    - pandas==1.5.3
+    - pillow==10.2.0
+    - pluggy==1.4.0
+    - polars==0.20.15
+    - pyagrum==1.12.1
+    - pydot==2.0.0
+    - pyparsing==3.1.2
+    - pytest==8.1.1
+    - pytest-faulthandler==2.0.1
+    - python-dateutil==2.9.0.post0
+    - pytz==2024.1
+    - pyyaml==6.0.1
+    - scipy==1.12.0
+    - six==1.16.0
+    - tomli==2.0.1
+    - tqdm==4.66.2
+prefix: /home/pboddavarama_umass_edu/.conda/envs/mdbn-pyagrum
