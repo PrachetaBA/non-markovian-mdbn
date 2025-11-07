@@ -174,7 +174,7 @@ class ErM1Simulation:
         Generate interarrival time using Erlang(k, lambda) distribution
         """
         # using gamma with integer shape k
-        k = max(1, int(self.input_params.k))
+        k = max(1, int(self.input_params.k)) # handle if wrong input k
         return float(self.rng.gamma(shape=k, scale=(mean_arrival_time / k)))
 
 
@@ -193,26 +193,6 @@ class ErM1Simulation:
                         index=self.time_series.columns)
         # use loc to append (similar to simulator.py)
         self.time_series.loc[len(self.time_series)] = row
-
-
-    def summary(self):
-        """
-        Get summary of the simulation run
-        """
-        T = min(self.clock, self.input_params.simulation_end)
-        util = (self.dep_sum / T) if T > 0 else 0.0
-        avg_queue = (self.total_wait_time / T) if T > 0 else 0.0
-        avg_wait_per_served = (self.total_wait_time / self.num_of_departures) if self.num_of_departures > 0 else 0.0
-        avg_service_observed = (self.dep_sum / self.num_of_departures) if self.num_of_departures > 0 else 0.0
-        return {
-            "SimTime": T,
-            "Arrivals": self.num_arrivals,
-            "Departures": self.num_of_departures,
-            "Utilization": util,
-            "AvgQueueLength": avg_queue,
-            "AvgWaitPerServed": avg_wait_per_served,
-            "AvgServiceObserved": avg_service_observed,
-        }
 
 
 
