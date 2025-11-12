@@ -68,24 +68,25 @@ class ErM1Simulation:
                                      k=k,
                                      simulation_end=simulation_end)
 
-        # next event times (initialize first arrival)
-        first_arrival = self.gen_int_arr(self.input_params.mean_interarrival_time)
-        # if initial queue >0, we consider first departure scheduled (busy server)
+        # track current phase for Erlang arrivals
+        self.phase_counter = 1
+
+        # next event times (initialize first phase arrival)
+        first_phase_arrival = self.gen_phase_time(self.input_params.mean_interarrival_time)
         if initial_queue_length == 0:
             self.next_event_times = NextEventTimes(
-                t_arrival=self.clock + first_arrival,
+                t_arrival=self.clock + first_phase_arrival,
                 t_departure=float('inf')
             )
             self.server = ServerState(busy=False)
             self.curr_num_in_q = 0
             self.curr_num_in_system = 0
         else:
-            # place initial customers: one in service and rest in queue
             self.curr_num_in_system = initial_queue_length
             self.curr_num_in_q = initial_queue_length - 1
             service_time = self.gen_service_time(self.input_params.mean_service_time)
             self.next_event_times = NextEventTimes(
-                t_arrival=self.clock + first_arrival,
+                t_arrival=self.clock + first_phase_arrival,
                 t_departure=self.clock + service_time
             )
             self.server = ServerState(busy=True)
@@ -93,12 +94,12 @@ class ErM1Simulation:
         # bookkeeping
         self.num_arrivals = 0
         self.num_of_departures = 0
-        self.dep_sum = 0.0               # total service time (for utilization)
-        self.total_wait_time = 0.0       # integral of queue length over time
-        self.total_joined_queue = 0      # cumulative count of those who waited
+        self.dep_sum = 0.0               
+        self.total_wait_time = 0.0       
+        self.total_joined_queue = 0      
 
         # time-series logging
-        self.time_series = pd.DataFrame(columns=["Time", "Event", "Queue_Length"])
+        self.time_series = pd.DataFrame(columns=["Time", "Event", "Queue_Length", "Current_Phase"])
         self.log_event("Initialization")
 
 
@@ -117,17 +118,28 @@ class ErM1Simulation:
 
         # call appropriate event
         if self.next_event_times.t_arrival <= self.next_event_times.t_departure:
-            self.arrival()
+            self.arrival_phase()
         else:
             self.departure()
 
         return False
 
 
-    def arrival(self):
+    def arrival_phase(self):
         """
-        Handle an arrival event
+        handle the Erlang arrival phase
+        trigger an arrival when k phases complete
         """
+        if self.phase_counter < self.input_params.k:
+            # move to next phase
+            self.phase_counter += 1
+            next_phase_time = self.gen_phase_time(self.input_params.mean_interarrival_time)
+            self.next_event_times.t_arrival = self.clock + next_phase_time
+            self.log_event("Phase_Progress")
+            return
+
+        # k phases completed so actual arrival
+        self.phase_counter = 1
         self.num_arrivals += 1
         self.curr_num_in_system += 1
 
@@ -142,9 +154,9 @@ class ErM1Simulation:
             self.curr_num_in_q += 1
             self.total_joined_queue += 1
 
-        # next arrival (Erlang)
-        inter = self.gen_int_arr(self.input_params.mean_interarrival_time)
-        self.next_event_times.t_arrival = self.clock + inter
+        # schedule next phase
+        next_phase_time = self.gen_phase_time(self.input_params.mean_interarrival_time)
+        self.next_event_times.t_arrival = self.clock + next_phase_time
         self.log_event("Arrival")
 
 
@@ -169,13 +181,13 @@ class ErM1Simulation:
         self.log_event("Departure")
 
 
-    def gen_int_arr(self, mean_arrival_time: float) -> float:
+    def gen_phase_time(self, mean_arrival_time: float) -> float:
         """
-        Generate interarrival time using Erlang(k, lambda) distribution
+        generates a single exponential phase time for Erlang process
         """
-        # using gamma with integer shape k
-        k = max(1, int(self.input_params.k)) # handle if wrong input k
-        return float(self.rng.gamma(shape=k, scale=(mean_arrival_time / k)))
+        k = max(1, int(self.input_params.k))
+        phase_lambda = k / mean_arrival_time
+        return float(self.rng.exponential(scale=1.0 / phase_lambda))
 
 
     def gen_service_time(self, mean_service_time: float) -> float:
@@ -189,7 +201,7 @@ class ErM1Simulation:
         """
         Log the events of the simulation
         """
-        row = pd.Series([self.clock, event_type, self.curr_num_in_system],
+        row = pd.Series([self.clock, event_type, self.curr_num_in_system, self.phase_counter],
                         index=self.time_series.columns)
         # use loc to append (similar to simulator.py)
         self.time_series.loc[len(self.time_series)] = row
@@ -263,8 +275,7 @@ if __name__ == "__main__":
 
     if len(df_list) > 0:
         df = pd.concat(df_list, ignore_index=True)
-        # reorder columns to match mm1-like output
-        df = df[["Run", "Lambda", "Mu", "K", "End", "Time", "Event", "Queue_Length"]]
+        df = df[["Run", "Lambda", "Mu", "Current_Phase", "K", "End", "Time", "Event", "Queue_Length"]]
         df.to_csv(outpath, index=False)
         logger.info(f"Wrote time series to {outpath}")
     else:
