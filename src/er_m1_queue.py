@@ -17,6 +17,7 @@ import logging
 import dataclasses
 import numpy as np
 import pandas as pd
+import yaml
 
 logger = logging.getLogger(__name__)
 
@@ -209,41 +210,44 @@ class ErM1Simulation:
 
 
 def parse_args():
-    """
-    Parse the input arguments
-    """
-    parser = argparse.ArgumentParser(description="Er/M/1 queue simulator")
+    parser = argparse.ArgumentParser()
 
-    # add necessary arguments
-    parser.add_argument("--arr", nargs='+', type=float, required=True,
-                        help="Arrival rates lambda (e.g. 0.2 0.4). Script uses mean interarrival = 1/lambda")
-    parser.add_argument("--ser", nargs=1, type=float, required=True,
-                        help="Service rate mu (e.g. 1.0). Script uses mean service time = 1/mu")
-    parser.add_argument("--k", nargs=1, type=int, default=[1],
-                        help="Erlang shape k (integer >=1). k=1 -> exponential.")
-    parser.add_argument("--runs", nargs=1, type=int, default=[1],
-                        help="Number of replications per arrival rate")
-    parser.add_argument("--end", nargs=1, type=float, required=True,
-                        help="Simulation end time (e.g. 10.0)")
-    parser.add_argument("--seed", nargs=1, type=int, default=[123],
-                        help="Base RNG seed (each replication will add offset)")
-    parser.add_argument("--out", nargs=1, type=str, default=["data/erm1-timeseries.csv"],
-                        help="Output CSV filepath")
+    parser.add_argument("--config_file", "-c", type=str, required=True,
+                        help="Path to YAML config file (e.g. configs/simulator.yaml)")
+    parser.add_argument("--experiment_number", "-e", type=int, default=1,
+                        help="Experiment number to run the script")
+    parser.add_argument("--verbose", "-v",
+                        help="Increase output verbosity",
+                        action="store_true",
+                        default=False,
+                        required=False)
     
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     args = parse_args()
-    arrival_rates = args.arr
-    mu = args.ser[0]
-    k = args.k[0]
-    runs = args.runs[0]
-    sim_end = args.end[0]
-    base_seed = args.seed[0]
-    outpath = args.out[0]
 
-    logging.basicConfig(level=logging.INFO)
+    # set logging level
+    if args.verbose:
+        logging.basicConfig(level=logging.DEBUG)
+    else:
+        logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
+
+    # load the config
+    with open(args.config_file, "r") as f:
+        config = yaml.safe_load(f)[f"experiment_{args.experiment_number}"]
+
+    # extract parameters
+    arrival_rates = config["arrival_rates"]
+    mu = config["service_rates"][0]
+    k = config["total_phases"]
+    runs = config["runs"]
+    sim_end = config["simulation_end"]
+    outpath = config["output_folder"] + "/results.csv"
+    base_seed = config.get("seed", 0)  # optional
+
     start_time = time.time()
     df_list = []
     RUN = 1
@@ -252,6 +256,7 @@ if __name__ == "__main__":
         mean_interarrival = 1.0 / lam
         mean_service = 1.0 / mu
         logger.info(f"Running Er/M/1 for lambda={lam}, mu={mu}, k={k}, meanIA={mean_interarrival}, meanS={mean_service}")
+
         for i in range(runs):
             seed = base_seed + i
             sim = ErM1Simulation(mean_interarrival_time=mean_interarrival,
@@ -261,7 +266,6 @@ if __name__ == "__main__":
                                  seed=seed,
                                  initial_queue_length=0)
 
-            # run until simulation end
             while True:
                 stop = sim.time_adv()
                 if stop:
