@@ -64,6 +64,12 @@ class ErM1Simulation:
                  initial_queue_length=0):
         self.clock = 0.0  # simulation clock
         self.rng = np.random.default_rng(seed)  # random number generator stream
+
+        # ensure k (total phases) is at least 1
+        if k < 1:
+            logging.warning(f"provided k={k} is invalid, resetting it to 1")
+            k = 1
+
         self.input_params = InputParameters(mean_interarrival_time=mean_interarrival_time,
                                      mean_service_time=mean_service_time,
                                      k=k,
@@ -186,8 +192,7 @@ class ErM1Simulation:
         """
         generates a single exponential phase time for Erlang process
         """
-        k = max(1, int(self.input_params.k))
-        phase_lambda = k / mean_arrival_time
+        phase_lambda = self.input_params.k / mean_arrival_time
         return float(self.rng.exponential(scale=1.0 / phase_lambda))
 
 
