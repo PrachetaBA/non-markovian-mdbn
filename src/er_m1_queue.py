@@ -18,6 +18,7 @@ import dataclasses
 import numpy as np
 import pandas as pd
 import yaml
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -250,7 +251,13 @@ if __name__ == "__main__":
     k = config["total_phases"]
     runs = config["runs"]
     sim_end = config["simulation_end"]
-    outpath = config["output_folder"] + "/results.csv"
+
+    # ensure outputs go to project_root/data/<output_folder>
+    project_root = Path(__file__).resolve().parents[1]
+    output_root = project_root / "data" / config["output_folder"]
+    output_root.mkdir(parents=True, exist_ok=True)
+    outpath = output_root / f"erm1-simulation-results-{args.experiment_number}.csv"
+
     base_seed = config.get("seed", 0)  # optional
 
     start_time = time.time()
