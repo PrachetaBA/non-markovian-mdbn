@@ -13,7 +13,6 @@ to the sampling interval. It consists of the following variables (for each time 
 
 # import necessary libraries
 import argparse
-import os
 import logging
 import time
 from bisect import bisect  # Bisect is used for subsampling
@@ -21,12 +20,12 @@ import pandas as pd
 from tqdm import tqdm
 import yaml
 from pathlib import Path
+import numpy as np
 
 logger = logging.getLogger('subsampling_discrete_dbn_erm1')
 
 
-def construct_dbn_erm1_data(input_filename, output_filename, simulation_end,
-                       sampling_rate):
+def construct_dbn_erm1_data(input_filename, output_filename, sampling_rate):
     """
     Function to construct discrete-time sub-sampled DBN data from Er/M/1 simulation data
     ----------
@@ -41,6 +40,7 @@ def construct_dbn_erm1_data(input_filename, output_filename, simulation_end,
 
     # Read the simulator data (continuous time) from the file
     df = pd.read_csv(f"{input_filename}")
+    simulation_end = float(np.ceil(df['Time'].max()))
     dbn_data = pd.DataFrame()
 
     runs = max(df['Run']) # Number of simulation runs
@@ -149,10 +149,9 @@ if __name__ == "__main__":
 
     # extract the parameters
     time_series_experiment = config['erm1_time_series_experiment']
-    input_file = config['input_file']
+    input_file = f"simulation/erm1-simulation-results-{time_series_experiment}.csv"
     output_folder = config['time_discretization_folder']
     sampling_interval = config['sampling_interval']
-    simulation_end_time = config['simulation_end_time']
 
     # expected file paths
     project_root = Path(__file__).resolve().parents[1]
@@ -162,4 +161,4 @@ if __name__ == "__main__":
     discrete_time_file = output_path / f"discrete-time-dbn-exp-{experiment_number}.csv"
 
     # call the subsampling function
-    construct_dbn_erm1_data(input_path, discrete_time_file, simulation_end_time, sampling_interval)
+    construct_dbn_erm1_data(input_path, discrete_time_file, sampling_interval)
