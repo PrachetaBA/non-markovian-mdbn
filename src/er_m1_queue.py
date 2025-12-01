@@ -247,8 +247,8 @@ if __name__ == "__main__":
 
     # extract parameters
     arrival_rates = config["arrival_rates"]
-    mu = config["service_rates"][0]
-    k = config["total_phases"]
+    service_rates = config["service_rates"]
+    phases = config["total_phases"]
     runs = config["runs"]
     sim_end = config["simulation_end"]
 
@@ -265,29 +265,31 @@ if __name__ == "__main__":
     RUN = 1
 
     for lam in arrival_rates:
-        mean_interarrival = 1.0 / lam
-        mean_service = 1.0 / mu
-        logger.info(f"Running Er/M/1 for lambda={lam}, mu={mu}, k={k}, meanIA={mean_interarrival}, meanS={mean_service}")
+        for mu in service_rates:
+            for k in phases:
+                mean_interarrival = 1.0 / lam
+                mean_service = 1.0 / mu
+                logger.info(f"Running Er/M/1 for lambda={lam}, mu={mu}, k={k}, meanIA={mean_interarrival}, meanS={mean_service}")
 
-        for i in range(runs):
-            seed = base_seed + i
-            sim = ErM1Simulation(mean_interarrival_time=mean_interarrival,
-                                 mean_service_time=mean_service,
-                                 k=k,
-                                 simulation_end=sim_end,
-                                 seed=seed,
-                                 initial_queue_length=0)
+                for i in range(runs):
+                    seed = base_seed + i
+                    sim = ErM1Simulation(mean_interarrival_time=mean_interarrival,
+                                        mean_service_time=mean_service,
+                                        k=k,
+                                        simulation_end=sim_end,
+                                        seed=seed,
+                                        initial_queue_length=0)
 
-            while True:
-                stop = sim.time_adv()
-                if stop:
-                    break
+                    while True:
+                        stop = sim.time_adv()
+                        if stop:
+                            break
 
-            # attach run metadata and collect timeseries
-            df_list.append(sim.time_series.assign(Run=RUN, Lambda=lam, Mu=mu, K=k, End=sim_end))
-            RUN += 1
+                    # attach run metadata and collect timeseries
+                    df_list.append(sim.time_series.assign(Run=RUN, Lambda=lam, Mu=mu, K=k, End=sim_end))
+                    RUN += 1
 
-        logger.info(f"Completed {runs} runs for lambda={lam}")
+                logger.info(f"Completed {runs} runs for lambda={lam}")
 
     if len(df_list) > 0:
         df = pd.concat(df_list, ignore_index=True)
