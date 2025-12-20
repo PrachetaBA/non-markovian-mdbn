@@ -249,6 +249,7 @@ if __name__ == "__main__":
     arrival_rates = config["arrival_rates"]
     service_rates = config["service_rates"]
     phases = config["total_phases"]
+    max_iql = int(config.get("max_iql", 0))
     runs = config["runs"]
     sim_end = config["simulation_end"]
 
@@ -269,31 +270,33 @@ if __name__ == "__main__":
             for k in phases:
                 mean_interarrival = 1.0 / lam
                 mean_service = 1.0 / mu
-                logger.info(f"Running Er/M/1 for lambda={lam}, mu={mu}, k={k}, meanIA={mean_interarrival}, meanS={mean_service}")
 
-                for i in range(runs):
-                    seed = base_seed + i
-                    sim = ErM1Simulation(mean_interarrival_time=mean_interarrival,
-                                        mean_service_time=mean_service,
-                                        k=k,
-                                        simulation_end=sim_end,
-                                        seed=seed,
-                                        initial_queue_length=0)
+                for iql in range(0, max_iql + 1):
+                    logger.info(f"Running Er/M/1 for lambda={lam}, mu={mu}, k={k}, iql={iql}, meanIA={mean_interarrival}, meanS={mean_service}")
 
-                    while True:
-                        stop = sim.time_adv()
-                        if stop:
-                            break
+                    for i in range(runs):
+                        seed = base_seed + i
+                        sim = ErM1Simulation(mean_interarrival_time=mean_interarrival,
+                                            mean_service_time=mean_service,
+                                            k=k,
+                                            simulation_end=sim_end,
+                                            seed=seed,
+                                            initial_queue_length=iql)
 
-                    # attach run metadata and collect timeseries
-                    df_list.append(sim.time_series.assign(Run=RUN, Lambda=lam, Mu=mu, K=k, End=sim_end))
-                    RUN += 1
+                        while True:
+                            stop = sim.time_adv()
+                            if stop:
+                                break
+
+                        # attach run metadata and collect timeseries
+                        df_list.append(sim.time_series.assign(Run=RUN, Lambda=lam, Mu=mu, K=k, IQL=iql, End=sim_end))
+                        RUN += 1
 
                 logger.info(f"Completed {runs} runs for lambda={lam}")
 
     if len(df_list) > 0:
         df = pd.concat(df_list, ignore_index=True)
-        df = df[["Run", "Lambda", "Mu", "Current_Phase", "K", "End", "Time", "Event", "Queue_Length"]]
+        df = df[["Run", "Lambda", "Mu", "Current_Phase", "K", "IQL", "End", "Time", "Event", "Queue_Length"]]
         df.to_csv(outpath, index=False)
         logger.info(f"Wrote time series to {outpath}")
     else:
