@@ -122,7 +122,9 @@ def construct_dbn(bn_file,
                   edges,
                   manual_maxql,
                   store_dbn=False,
-                  constructed_dbn_filename=None):
+                  constructed_dbn_filename=None,
+                  use_crosstab=True,
+                  exp_no=1):
     """Function to construct the DBN using the simulator data (ERM1).
 
     This function constructs the DBN with the specified structure and learns the
@@ -239,9 +241,7 @@ def construct_dbn(bn_file,
     # step 4: CPD for phase
     learn_cpd_using_crosstab(dbn, "CurrentPhaset", data_bn, logger)
 
-    # step 5: CPD for queue-length
-    use_crosstab = True
-
+    # step 5: CPD for queue-lengths
     if use_crosstab:
         learn_cpd_using_crosstab(dbn, "QueueLengtht", data_bn, logger)
     else:
@@ -351,14 +351,15 @@ if __name__ == "__main__":
         all_configs = yaml.safe_load(file)
     config = all_configs[f'experiment_{experiment_number}']
 
-    # Basic config fields we expect (same names as your PI config)
+    # config fields
     time_discretization_experiment = config['time_discretization_experiment']
     constructed_dbn_folder = config['dbn_output_folder']
     maximum_queue_length = config['maximum_ql']
     dbn_edges = config.get('dbn_edges', [])
     expt_name = config.get('expt_name', 'erm1_experiment')
+    use_crosstab = config.get('use_crosstab', False)
 
-    # Read time discretization and simulation configs (to find file names)
+    # Read time discretization and simulation configs
     with open(args.time_disc_config, 'r', encoding='utf-8') as time_discretization_file:
         time_discretization_config = yaml.safe_load(time_discretization_file)
         time_discretization_params = time_discretization_config[f'experiment_{time_discretization_experiment}']
@@ -367,17 +368,16 @@ if __name__ == "__main__":
         sim_config = yaml.safe_load(sim_file)
         sim_params = sim_config[f"experiment_{time_discretization_params['erm1_time_series_experiment']}"]
 
-    # Extract some sim params for logging (optional)
+    # logging ome parameters
     simulation_reps = sim_params.get('runs', None)
     simulation_end_time = sim_params.get('simulation_end', None)
     sampling_interval = time_discretization_params.get('sampling_interval', None)
-
     logger.info(f"Experiment: {expt_name}")
     logger.info(f"Simulation replications: {simulation_reps}")
     logger.info(f"Simulation end time: {simulation_end_time}")
     logger.info(f"Sampling interval: {sampling_interval}")
 
-    # Build file names (match PI conventions)
+    # build the filenames
     bn_filename = (
         f"{time_discretization_params['time_discretization_folder']}"
         f"/discrete-time-2tbn-erm1-exp-{time_discretization_experiment}.csv")
@@ -388,15 +388,15 @@ if __name__ == "__main__":
     logger.info(f"2TBN filename: {bn_filename}")
     logger.info(f"DBN filename: {dbn_filename}")
 
-    # if not os.path.exists(constructed_dbn_folder):
-    #     os.makedirs(constructed_dbn_folder)
-    # config_id = config_file.split('/')[-1].split('.')[0]
-    # CONSTRUCTED_DBN_FILENAME = f'{constructed_dbn_folder}/dbn_{config_id}_erm1.bif'
-    # logger.info(f'Constructed DBN filename: {CONSTRUCTED_DBN_FILENAME}')
-
+    # get constructed dbn file name
     project_root = Path(__file__).resolve().parents[1]
-    CONSTRUCTED_DBN_FILENAME = project_root / "data/discrete_time/dbn_erm1.bif"
+    if use_crosstab:
+        CONSTRUCTED_DBN_FILENAME = project_root / f"data/discrete_time/dbn_erm1_exp{time_discretization_experiment}_crosstab.bif"
+    else:
+        CONSTRUCTED_DBN_FILENAME = project_root / f"data/discrete_time/dbn_erm1_exp{time_discretization_experiment}.bif"
+    logger.info(f'Constructed DBN filename: {CONSTRUCTED_DBN_FILENAME}')
 
+    # construct the dbn
     if os.path.exists(CONSTRUCTED_DBN_FILENAME):
         logger.info(f"DBN file {CONSTRUCTED_DBN_FILENAME} already exists")
     else:
@@ -406,6 +406,8 @@ if __name__ == "__main__":
                       dbn_edges,
                       maximum_queue_length,
                       store_dbn=True,
-                      constructed_dbn_filename=CONSTRUCTED_DBN_FILENAME)
+                      constructed_dbn_filename=CONSTRUCTED_DBN_FILENAME,
+                      use_crosstab=use_crosstab,
+                      exp_no=time_discretization_experiment)
         end = time.time()
         logger.info(f"Time taken to construct the ERM1 DBN: {end - start: .2f} seconds")
