@@ -347,3 +347,51 @@ if __name__ == "__main__":
     output_filename = f"{results_folder}/posterior-exp-{experiment_number}.pkl"
     with open(output_filename, 'wb') as file:
         pickle.dump(output_dict, file)
+
+
+
+
+
+    ####################### Trial Figures ########################
+    # check if figures dir exists
+    notebook_dir = Path.cwd()
+    project_root = notebook_dir.parent
+    figures_dir = project_root / "figures"
+    figures_dir.mkdir(exist_ok=True)
+
+    # plot for each lambda, mu, k
+    bn_id = dbn.idFromName("QueueLengtht")
+    Lt_values = list(range(0, int(max_ql)+1))
+    unique_params = data_bn[['Lambda0', 'Mu0', 'K0']].drop_duplicates().reset_index(drop=True)
+
+    for idx, row in unique_params.iterrows():
+        fixed_lambda = row["Lambda0"]
+        fixed_mu     = row["Mu0"]
+        fixed_k      = row["K0"]
+
+        plt.figure(figsize=(8, 6))
+        colors = plt.cm.viridis(np.linspace(0, 1, len(Lt_values)))
+
+        for ql0, color in zip(Lt_values, colors):
+            plot_dist = dbn.cpt(bn_id)[{'Lambdat': str(fixed_lambda), 'Mut': str(fixed_mu), 'CurrentPhase0': str(fixed_k), 'QueueLength0': ql0}]
+            plt.plot(range(len(plot_dist)), plot_dist, color=color, label=f"L0={ql0}")
+
+        plt.xlabel("Queue Length at t")
+        plt.ylabel("P(Lt | L0)")
+        if use_crosstab:
+            plt.title(f"corsstab used: λ={fixed_lambda}, μ={fixed_mu}, k={fixed_k}")
+        else:
+            plt.title(f"tml used: λ={fixed_lambda}, μ={fixed_mu}, k={fixed_k}")
+        plt.legend()
+        plt.grid(True)
+
+        # save the figure in the figures directory
+        if use_crosstab:
+            fname = f"experiment{exp_no}_crosstab_lambda{fixed_lambda}_mu{fixed_mu}_k{fixed_k}.png"
+        else:
+            fname = f"experiment{exp_no}_lambda{fixed_lambda}_mu{fixed_mu}_k{fixed_k}.png"
+        plt.savefig(figures_dir / fname, dpi=300, bbox_inches="tight")
+        plt.close()
+    ####################### Trial Figures ########################
+
+
