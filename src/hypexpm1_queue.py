@@ -159,13 +159,13 @@ class GammaM1Simulation:
         """
         Plot the Gamma distribution and the Hypoexponential approximation on the same graph
         """
-        # --- 1. Gamma distribution PDF ---
+        # gamma dist pdf
         shape = self.input_params.j
         scale = self.input_params.tau / shape  # mean = tau, so scale = tau / shape
         x = np.linspace(0, self.input_params.tau * 5, 1000)
         gamma_pdf = gamma.pdf(x, a=shape, scale=scale)
 
-        # --- 2. Hypoexponential approximation via sampling ---
+        # hypoexp samples
         hypo_samples = []
         for _ in range(num_samples):
             sample = sum(self.rng.exponential(1.0 / rate) for rate in self.phase_rates)
@@ -176,7 +176,7 @@ class GammaM1Simulation:
         hist_vals, bin_edges = np.histogram(hypo_samples, bins=bins, density=True)
         bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
 
-        # --- 3. Plot both ---
+        # plot the distributions together
         plt.figure(figsize=(8, 5))
         plt.plot(x, gamma_pdf, label="Gamma PDF", color="blue", lw=2)
         plt.plot(bin_centers, hist_vals, label="Hypoexp Approx (samples)", color="orange", lw=2, alpha=0.7)
@@ -192,26 +192,23 @@ class GammaM1Simulation:
         """
         Compute approximate cross-entropy H(Gamma || Hypoexp)
         """
-        # --- Sample from Gamma ---
+        # get samples from gamma
         shape = self.input_params.j
         scale = self.input_params.tau / shape
-        gamma_samples = np.random.default_rng().gamma(shape, scale, num_gamma_samples)
+        #gamma_samples = np.random.default_rng().gamma(shape, scale, num_gamma_samples)
+        gamma_samples = self.rng.gamma(shape, scale, num_gamma_samples)
 
-        # --- Build hypoexponential approximation ---
+        # hypoexp samples and estimate pdf
         hypo_samples = np.array([sum(self.rng.exponential(1.0 / rate) for rate in self.phase_rates)
                                 for _ in range(num_gamma_samples)])
-
-        # Estimate PDF of hypoexponential via histogram
         hist_vals, bin_edges = np.histogram(hypo_samples, bins=bins, density=True)
         bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
 
-        # Interpolate hypoexp PDF at Gamma samples
+        # hypoexp PDF at Gamma samples and avoid log(0)
         hypo_pdf_at_gamma = np.interp(gamma_samples, bin_centers, hist_vals, left=epsilon, right=epsilon)
-
-        # Clip to avoid log(0)
         hypo_pdf_at_gamma = np.maximum(hypo_pdf_at_gamma, epsilon)
 
-        # Compute cross-entropy
+        # get cross-entropy
         cross_entropy = -np.mean(np.log(hypo_pdf_at_gamma))
         return cross_entropy
 
@@ -460,8 +457,8 @@ if __name__ == "__main__":
                         RUN += 1
 
                 sim.plot_distributions()
-                ce_loss = sim.compute_cross_entropy()
-                print(f"\nCE loss = {ce_loss}\n")
+                #ce_loss = sim.compute_cross_entropy()
+                #print(f"\nCE loss = {ce_loss}\n")
                 Q = sim.generate_Q_matrix(max_queue_len_obs)
                 print(Q)
                 delta = sim.get_optimal_subsampling_interval(max_queue_len_obs)
