@@ -1,0 +1,14 @@
+experiment_1:
+  experimental_design: full_factorial
+  phase_rates:
+    - [0.5, 0.3]
+    - [0.4, 0.4, 0.4, 0.3, 0.1]
+  service_rates:
+    - 0.9
+    - 1.0
+  runs: 1
+  simulation_end: 5.0
+  configurations: None
+  varying_iql: false
+  max_iql: 0
+  output_folder: 'data/simulation'

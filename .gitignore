@@ -5,5 +5,4 @@ data/
 figures/*
 output/
 results/
-configs/
 .DS_Store

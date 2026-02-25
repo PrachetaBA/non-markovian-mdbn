@@ -1,3 +1,4 @@
+# TODO: Change to G/M/1 with Gamma
 # pylint: disable=pointless-string-statement, logging-fstring-interpolation
 """Script to construct the DBN using the simulator data. 
 

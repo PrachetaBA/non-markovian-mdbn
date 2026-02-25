@@ -4,7 +4,7 @@
 # Import libraries
 import unittest
 import yaml
-from src.tandemq_dbn_inference import construct_dbn
+from src_hypoexp.tandemq_dbn_inference import construct_dbn
 
 class TestTandemQDBN(unittest.TestCase):
     """Test the structure of the constructed DBN."""
