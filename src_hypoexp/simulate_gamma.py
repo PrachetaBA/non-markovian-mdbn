@@ -123,6 +123,7 @@ def create_hypoexp_sim_config(query_workload, output_path="config/hypoexp_simula
     
     phase_rates_list = []
     for alpha, theta in zip(input_config['alphas'], input_config['thetas']):
+        print(alpha, theta) # TODO: Check this
         phase_rates = gamma_hypoexponential_approximation(alpha, theta)
         # Plot the distributional approximation 
         plot_gamma_vs_hypoexp(alpha, theta, phase_rates)
@@ -163,6 +164,6 @@ def create_hypoexp_sim_config(query_workload, output_path="config/hypoexp_simula
 if __name__ == "__main__":
     query_workload = {
         'simulator_config_file': 'config/gamma_simulator.yaml',
-        'experiment_number': 2, 
+        'experiment_number': 1, 
     }
     create_hypoexp_sim_config(query_workload)

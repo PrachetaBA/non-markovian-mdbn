@@ -130,6 +130,7 @@ class HypoExpM1Simulation:
 
         # stop if time exceeds simulation end
         if t_next >= self.input_params.simulation_end:
+            self.log_event("Simulation_End")
             return True
 
         # call appropriate event
@@ -264,11 +265,12 @@ if __name__ == "__main__":
     runs = config["runs"]
     sim_end = config["simulation_end"]
 
-    # ensure outputs go to project_root/data/<output_folder>
-    project_root = Path(__file__).resolve().parents[1]
-    output_root = project_root / "data" / config["output_folder"]
-    output_root.mkdir(parents=True, exist_ok=True)
-    outpath = output_root / f"hypexp_m1-simulation-results-{args.experiment_number}.csv"
+    # # ensure outputs go to project_root/data/<output_folder>
+    # project_root = Path(__file__).resolve().parents[1]
+    # output_root = project_root / "data" / config["output_folder"]
+    # output_root.mkdir(parents=True, exist_ok=True)
+    # outpath = output_root / f"hypexp_m1-simulation-results-{args.experiment_number}.csv"
+    outpath = f'data/simulation/hypoexp-m1-{args.experiment_number}.csv'
 
     base_seed = config.get("seed", 0)  # optional
 
