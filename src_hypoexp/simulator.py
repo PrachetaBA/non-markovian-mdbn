@@ -3,7 +3,7 @@ Simulation model of a HypoExp/M/1 queue
 We can approximate multiple general distributions to the hypoexponential
 
 Input parameters:
-Arrival distributions: 
+Arrival distributions:
     Hypoexponential distribution: 
         num_phases 
         lambda_first
@@ -50,7 +50,8 @@ class InputParameters:
     phase_rates: list 
     mean_service_rate: float # mean service rate (mu) for exponential distribution
     simulation_end: float
-    
+
+
 @dataclasses.dataclass
 class NextEventTimes:
     """
@@ -119,6 +120,7 @@ class HypoExpM1Simulation:
 
         # some logger info to keep
         logger.debug(f"Initialized HypoExp with phase rates: {self.input_params.phase_rates}")
+
 
     def time_adv(self):
         """
@@ -265,12 +267,11 @@ if __name__ == "__main__":
     runs = config["runs"]
     sim_end = config["simulation_end"]
 
-    # # ensure outputs go to project_root/data/<output_folder>
-    # project_root = Path(__file__).resolve().parents[1]
-    # output_root = project_root / "data" / config["output_folder"]
-    # output_root.mkdir(parents=True, exist_ok=True)
-    # outpath = output_root / f"hypexp_m1-simulation-results-{args.experiment_number}.csv"
-    outpath = f'data/simulation/hypoexp-m1-{args.experiment_number}.csv'
+    # ensure outputs go to project_root/data/<output_folder>
+    project_root = Path(__file__).resolve().parents[1]
+    output_root = project_root / config.get("output_folder", "data/simulation")
+    output_root.mkdir(parents=True, exist_ok=True)
+    outpath = output_root / f'hypoexp-m1-{args.experiment_number}.csv'
 
     base_seed = config.get("seed", 0)  # optional
 
@@ -304,6 +305,7 @@ if __name__ == "__main__":
                         # attach run metadata and collect timeseries
                         df_list.append(sim.time_series.assign(Run=RUN, Phase_Rates=str(phase_rate_set), Mu=mu, IQL=iql, End=sim_end))
                         RUN += 1
+
     else: 
         for phase_rate_set in phase_rates:
             for mu in service_rates:
