@@ -122,6 +122,7 @@ class ErM1Simulation:
 
         # stop if time exceeds simulation end
         if t_next >= self.input_params.simulation_end:
+            self.log_event("Simulation_End")
             return True
 
         # call appropriate event

@@ -1,0 +1,35 @@
+{
+  "experiment_1": {
+    "time_discretization_experiment": 1,
+    "dbn_output_folder": "data/discrete_time",
+    "maximum_ql": 10,
+    "start_parameters": {
+      "alpha": 4.7,
+      "theta": 0.5,
+      "Mu": 0.7,
+      "QueueLength": 0
+    },
+    "interventions": [
+      {
+        "intervention_variable": "QueueLength",
+        "intervention_type": "interventional",
+        "intervention_start": 2.0,
+        "intervention_value": 4
+      },
+      {
+        "intervention_variable": "alpha",
+        "intervention_type": "parameter_intervention",
+        "intervention_start": 3.0,
+        "intervention_value": 5.5
+      }
+    ],
+    "query_variable": "QueueLength",
+    "query_time": 5.0,
+    "inference_algorithm": "LazyPropagation",
+    "results_folder": "output/queries",
+    "gt_replications": 5000,
+    "gt_results_folder": "data/queries_gt",
+    "figures_folder": "figures/queries",
+    "expt_name": "gm1_intervention_exp1"
+  }
+}

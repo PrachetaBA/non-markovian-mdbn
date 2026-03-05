@@ -1,0 +1,8 @@
+experiment_1:
+  taus: [5.0]
+  service_rates: [1.0]
+  shapes: [2.5]
+  max_iql: 2
+  runs: 1
+  simulation_end: 20.0
+  output_folder: "simulation"

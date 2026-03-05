@@ -218,7 +218,7 @@ class GammaM1Simulation:
         logger.debug(f'Parameter Intervention: {evidence_var} = {evidence_val}')
         logger.debug(f'Current parameters: {self.input_params}')
         if evidence_var == f'alpha' or evidence_var == f'theta':
-            self.input_params.alpha = evidence_val
+            setattr(self.input_params, evidence_var, evidence_val)
             if self.t_arrival >= self.clock:
                 self.t_arrival = self.clock + self.gen_int_arr(
                     self.input_params.alpha, self.input_params.theta)

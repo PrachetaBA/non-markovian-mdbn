@@ -206,7 +206,7 @@ def construct_dbn(bn_file,
     ]
 
     # Add fixed arcs as per the specified Hypoexp M1 dependencies:
-    # L_t  <- L_{t-1}, CurrentPhase_{t-1}, Lambda_t, Mu_t
+    # L_t  <- L_{t-1}, CurrentPhase_{t-1}, Mu_t
     dbn.addArc(ql0, qlt)
     dbn.addArc(phase0, qlt)
     dbn.addArc(mut, qlt)

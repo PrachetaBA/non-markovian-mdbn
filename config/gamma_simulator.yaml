@@ -1,13 +1,13 @@
 experiment_1: 
   alphas: 
-    - 2.5
-    - 3.0
+    - 5.5
+    - 3.7
   thetas: 
-    - 2.0
+    - 2.5
   service_rates:
     - 0.9
     - 1.0
-  runs: 1
+  runs: 50
   simulation_end: 5.0
   varying_iql: false
   max_iql: 0
