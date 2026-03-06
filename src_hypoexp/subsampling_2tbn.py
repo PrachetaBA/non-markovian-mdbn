@@ -37,7 +37,7 @@ def hypoexp_construct_2tbn_data(input_filename, output_filename, sampling_rate):
     ----------
     Arguments:
     1. Input Filename: CSV produced by the simulator with columns
-       Run,Phase_Rates,Mu,Current_Phase,IQL,End,Time,Event,Queue_Length
+       Run,Alpha,Theta,Phase_Rates,Mu,Current_Phase,IQL,End,Time,Event,Queue_Length
     2. Output Filename: the name of the file to save the time series data 
     3. simulation_end: the end time for the simulator 
     4. sampling_rate: sampling interval (0.1, 0.01, 1.0 etc)
@@ -49,6 +49,8 @@ def hypoexp_construct_2tbn_data(input_filename, output_filename, sampling_rate):
     #simulation_end = float(df['Time'].max().ceil())
     simulation_end = float(np.ceil(df['Time'].max()))
     global_df = pl.DataFrame(schema=[
+        ("Alpha", pl.Float64),
+        ("Theta", pl.Float64),
         ("Lambda_tprev", pl.Float64),
         ("Mu_tprev", pl.Float64),
         ("K_tprev", pl.Int64),
@@ -72,11 +74,15 @@ def hypoexp_construct_2tbn_data(input_filename, output_filename, sampling_rate):
 
         # Extract per-run fixed parameters
         phase_rates = ast.literal_eval(d[0, "Phase_Rates"])
+        alpha_run = float(d[0, "Alpha"])
+        theta_run = float(d[0, "Theta"])
         mu_run = float(d[0, "Mu"])  # Service rate
         k_run = len(phase_rates)
 
         # Initialize a new polars dataframe with the columns for the previous slice
         d1 = pl.DataFrame(schema=[
+            ("Alpha", pl.Float64),
+            ("Theta", pl.Float64),
             ("Lambda_tprev", pl.Float64),
             ("Mu_tprev", pl.Float64),
             ("K_tprev", pl.Int64),
@@ -101,6 +107,8 @@ def hypoexp_construct_2tbn_data(input_filename, output_filename, sampling_rate):
             lambda_active = phase_rates[curr_phase - 1]
 
             time_series = pl.DataFrame({
+                "Alpha": [alpha_run],
+                "Theta": [theta_run],
                 "Lambda_tprev": [lambda_active],
                 "Mu_tprev": [mu_run],
                 "K_tprev": [k_run],
@@ -121,13 +129,17 @@ def hypoexp_construct_2tbn_data(input_filename, output_filename, sampling_rate):
         d2 = d2[1:, :]  # Remove first row
         last_row_values = d2.row(len(d2) - 1)  # Get the last row values
         last_row = pl.DataFrame({
-            'Lambda_tprev': [last_row_values[0]],
-            'Mu_tprev': [last_row_values[1]],
-            'K_tprev': [last_row_values[2]],
-            'CurrentPhase_tprev': [last_row_values[3]],
-            'QueueLength_tprev': [last_row_values[4]],
+            'Alpha': [last_row_values[0]],
+            'Theta': [last_row_values[1]],
+            'Lambda_tprev': [last_row_values[2]],
+            'Mu_tprev': [last_row_values[3]],
+            'K_tprev': [last_row_values[4]],
+            'CurrentPhase_tprev': [last_row_values[5]],
+            'QueueLength_tprev': [last_row_values[6]],
         })
         d2 = d2.vstack(last_row)
+        # REMOVE static params from the *current* slice so we don't duplicate Alpha/Theta
+        d2 = d2.drop(["Alpha", "Theta"])
         # Rename d2 columns to represent current slice variables
         d2.columns = [
             'Lambda', 'Mu', 'K', 'CurrentPhase', 'QueueLength'

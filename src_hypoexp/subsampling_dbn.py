@@ -32,7 +32,7 @@ def construct_dbn_hypoexp_m1_data(input_filename, output_filename, sampling_rate
     ----------
     Arguments:
     1. input_filename: CSV produced by the simulator with columns
-       Run,Phase_Rates,Mu,Current_Phase,IQL,End,Time,Event,Queue_Length
+       Run,Alpha,Theta,Phase_Rates,Mu,Current_Phase,IQL,End,Time,Event,Queue_Length
     2. output_filename: the name of the file to save the time series data 
     3. simulation_end: the end time for the simulator 
     4. sampling_rate: sampling interval (0.1, 0.01, 1.0 etc)
@@ -56,10 +56,13 @@ def construct_dbn_hypoexp_m1_data(input_filename, output_filename, sampling_rate
 
         # Get fixed values of the input parameters for this run
         phase_rates = ast.literal_eval(d['Phase_Rates'].values[0])
+        alpha_run = d['Alpha'].values[0]
+        theta_run = d['Theta'].values[0]
         mu_run = d['Mu'].values[0]
         k_run = len(phase_rates)
 
-        time_series = []
+        #time_series = []
+        time_series = [alpha_run, theta_run]
 
         # Start at time t = 0.0
         t = 0.0
@@ -87,7 +90,8 @@ def construct_dbn_hypoexp_m1_data(input_filename, output_filename, sampling_rate
 
         # If r == 1, initialize the dataframe columns
         if r == 1:
-            colnames = []
+            #colnames = []
+            colnames = ['Alpha', 'Theta']
             counter = 0
             while counter < time_step_counter:
                 colnames.extend([

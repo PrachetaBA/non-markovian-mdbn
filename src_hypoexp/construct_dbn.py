@@ -167,7 +167,7 @@ def construct_dbn(bn_file,
 
     # Read the time series data file
     if os.path.exists(dbn_file):
-        data_dbn = pd.read_csv(dbn_file, index_col=0)
+        data_dbn = pd.read_csv(dbn_file)
     else:
         raise FileNotFoundError(f"{dbn_file} does not exist.")
 
@@ -177,32 +177,46 @@ def construct_dbn(bn_file,
     logger.info(f"Maximum queue length ever observed or specified: {max_ql}")
 
     # Define domains for Lambda, Mu, K, CurrentPhase using 2TBN
-    unique_lambda = sorted(data_bn['Lambda_tprev'].unique())
+    #unique_lambda = sorted(data_bn['Lambda_tprev'].unique())
     unique_mu = sorted(data_bn['Mu_tprev'].unique())
-    unique_k = [float(x) for x in sorted(data_bn['K_tprev'].unique())] # read as floats
+    #unique_k = [float(x) for x in sorted(data_bn['K_tprev'].unique())] # read as floats
     unique_phases = [float(x) for x in sorted(data_bn['CurrentPhase_tprev'].unique())]
+
+    # Alpha and Theta are present in the 2TBN (one value per run). Collect their unique values.
+    unique_alpha = sorted(data_bn['Alpha'].unique())
+    unique_theta = sorted(data_bn['Theta'].unique())
 
     # Create the variables of the DBN (naming: suffix "0" for previous slice, suffix "t" for current slice)
     # Previous time-slice variables
-    lambda_tprev = gm.NumericalDiscreteVariable("Lambda0", "Arrival rate (t - 1)", unique_lambda)
+    #lambda_tprev = gm.NumericalDiscreteVariable("Lambda0", "Arrival rate (t - 1)", unique_lambda)
     mu_tprev = gm.NumericalDiscreteVariable("Mu0", "Service rate (t - 1)", unique_mu)
-    k_tprev = gm.NumericalDiscreteVariable("K0", "Erlang phases (t - 1)", unique_k)
+    #k_tprev = gm.NumericalDiscreteVariable("K0", "Erlang phases (t - 1)", unique_k)
     phase_tprev = gm.NumericalDiscreteVariable("CurrentPhase0", "Current phase (t - 1)", unique_phases)
     ql_tprev = gm.RangeVariable("QueueLength0", "Queue length (t - 1)", 0, max_ql)
+
+    # Alpha/Theta (previous slice) — static per run but included as slice-0 variables
+    alpha_tprev = gm.NumericalDiscreteVariable("Alpha0", "Alpha (t - 1)", unique_alpha)
+    theta_tprev = gm.NumericalDiscreteVariable("Theta0", "Theta (t - 1)", unique_theta)
+
     # Current time-slice variables
-    lambda_t = gm.NumericalDiscreteVariable("Lambdat", "Arrival rate (t)", unique_lambda)
+    #lambda_t = gm.NumericalDiscreteVariable("Lambdat", "Arrival rate (t)", unique_lambda)
     mu_t = gm.NumericalDiscreteVariable("Mut", "Service rate (t)", unique_mu)
-    k_t = gm.NumericalDiscreteVariable("Kt", "Erlang phases (t)", unique_k)
+    #k_t = gm.NumericalDiscreteVariable("Kt", "Erlang phases (t)", unique_k)
     phase_t = gm.NumericalDiscreteVariable("CurrentPhaset", "Current phase (t)", unique_phases)
     ql_t = gm.RangeVariable("QueueLengtht", "Queue length (t)", 0, max_ql)
 
+    # Alpha/Theta (current slice). They are constant but present for the current-slice parent set.
+    alpha_t = gm.NumericalDiscreteVariable("Alphat", "Alpha (t)", unique_alpha)
+    theta_t = gm.NumericalDiscreteVariable("Thetat", "Theta (t)", unique_theta)
+
     # Create DBN and add variables
     dbn = gm.BayesNet()
-    (lambda0, mu0, k0, phase0, ql0) = [
-        dbn.add(x) for x in [lambda_tprev, mu_tprev, k_tprev, phase_tprev, ql_tprev]
+    (alpha0, theta0, mu0, phase0, ql0) = [
+        dbn.add(x) for x in [alpha_tprev, theta_tprev, mu_tprev, phase_tprev, ql_tprev]
     ]
-    (lambdat, mut, kdat, phaset, qlt) = [
-        dbn.add(x) for x in [lambda_t, mu_t, k_t, phase_t, ql_t]
+
+    (alphat, thetat, mut, phaset, qlt) = [
+        dbn.add(x) for x in [alpha_t, theta_t, mu_t, phase_t, ql_t]
     ]
 
     # Add fixed arcs as per the specified Hypoexp M1 dependencies:
@@ -210,38 +224,77 @@ def construct_dbn(bn_file,
     dbn.addArc(ql0, qlt)
     dbn.addArc(phase0, qlt)
     dbn.addArc(mut, qlt)
-    # i_t  <- i_{t-1}, Lambda_t
+    # # i_t  <- i_{t-1}, Lambda_t
+    # dbn.addArc(phase0, phaset)
+    # dbn.addArc(lambdat, phaset)
+
+    # i_t  <- i_{t-1}, Alpha_t, Theta_t
     dbn.addArc(phase0, phaset)
-    dbn.addArc(lambdat, phaset)
+    dbn.addArc(alphat, phaset)
+    dbn.addArc(thetat, phaset)
 
     # Print the DBN
     logger.debug(f"DBN: {dbn}")
 
  
-    # Step 1. Rename the columns of the 2TBN dataframe to match the DBN variable names
+    # # Step 1. Rename the columns of the 2TBN dataframe to match the DBN variable names
+    # data_bn.columns = [
+    #     "Lambda0", "Mu0", "K0", "CurrentPhase0", "QueueLength0",
+    #     "Lambdat", "Mut", "Kt", "CurrentPhaset", "QueueLengtht"
+    # ]
+
+    # Step 1. Ensure Alphat/Thetat exist (they are identical to Alpha/Theta because static per run),
+    # then rename/reorder the 2TBN dataframe columns to match the DBN variable names.
+    # Expected original data_bn column order coming from 2TBN generator:
+    # ['Alpha', 'Theta', 'Lambda_tprev', 'Mu_tprev', 'K_tprev', 'CurrentPhase_tprev', 'QueueLength_tprev',
+    #  'Lambda', 'Mu', 'K', 'CurrentPhase', 'QueueLength']
+
+    # If Alphat/Thetat not present, create current-slice copies (constant per run)
+    if 'Alpha' in data_bn.columns and 'Theta' in data_bn.columns:
+        data_bn['Alphat'] = data_bn['Alpha']
+        data_bn['Thetat'] = data_bn['Theta']
+
+    # Now reorder columns explicitly to a known order, then rename to DBN variable names.
+    data_bn = data_bn[[
+        'Alpha', 'Theta',
+        'Lambda_tprev', 'Mu_tprev', 'K_tprev', 'CurrentPhase_tprev', 'QueueLength_tprev',
+        'Alphat', 'Thetat',
+        'Lambda', 'Mu', 'K', 'CurrentPhase', 'QueueLength'
+    ]]
+
+    # Rename to DBN column names
     data_bn.columns = [
+        "Alpha0", "Theta0",
         "Lambda0", "Mu0", "K0", "CurrentPhase0", "QueueLength0",
+        "Alphat", "Thetat",
         "Lambdat", "Mut", "Kt", "CurrentPhaset", "QueueLengtht"
     ]
 
     # Step 2. Set the domain of all relevant variables in the pandas dataframes
-    data_bn["Lambda0"] = pd.Categorical(data_bn["Lambda0"], categories=unique_lambda)
+    #data_bn["Lambda0"] = pd.Categorical(data_bn["Lambda0"], categories=unique_lambda)
     data_bn["Mu0"] = pd.Categorical(data_bn["Mu0"], categories=unique_mu)
-    data_bn["K0"] = pd.Categorical(data_bn["K0"], categories=unique_k)
+    #data_bn["K0"] = pd.Categorical(data_bn["K0"], categories=unique_k)
     data_bn["CurrentPhase0"] = pd.Categorical(data_bn["CurrentPhase0"], categories=unique_phases)
     data_bn["QueueLength0"] = pd.Categorical(data_bn["QueueLength0"], categories=range(0, max_ql + 1))
-    data_bn["Lambdat"] = pd.Categorical(data_bn["Lambdat"], categories=unique_lambda)
+    #data_bn["Lambdat"] = pd.Categorical(data_bn["Lambdat"], categories=unique_lambda)
     data_bn["Mut"] = pd.Categorical(data_bn["Mut"], categories=unique_mu)
-    data_bn["Kt"] = pd.Categorical(data_bn["Kt"], categories=unique_k)
+    #data_bn["Kt"] = pd.Categorical(data_bn["Kt"], categories=unique_k)
     data_bn["CurrentPhaset"] = pd.Categorical(data_bn["CurrentPhaset"], categories=unique_phases)
     data_bn["QueueLengtht"] = pd.Categorical(data_bn["QueueLengtht"], categories=range(0, max_ql + 1))
+
+    data_bn["Alpha0"] = pd.Categorical(data_bn["Alpha0"], categories=unique_alpha)
+    data_bn["Theta0"] = pd.Categorical(data_bn["Theta0"], categories=unique_theta)
+    data_bn["Alphat"] = pd.Categorical(data_bn["Alphat"], categories=unique_alpha)
+    data_bn["Thetat"] = pd.Categorical(data_bn["Thetat"], categories=unique_theta)
 
     # For data_dbn (time-series DBN file): set categories for the "initial" slice columns we will use
     # We expect data_dbn to contain columns for slice 0 named "Lambda0","Mu0","K0","CurrentPhase0","QueueLength0"
     for col, cats in [
-        ("Lambda0", unique_lambda),
+        ("Alpha0", unique_alpha),
+        ("Theta0", unique_theta),
+        #("Lambda0", unique_lambda),
         ("Mu0", unique_mu),
-        ("K0", unique_k),
+        #("K0", unique_k),
         ("CurrentPhase0", unique_phases),
         ("QueueLength0", range(0, max_ql + 1))
     ]:
@@ -251,13 +304,15 @@ def construct_dbn(bn_file,
             logger.debug(f"Column {col} not present in data_dbn")
 
 
-    # step 3: initial queue lenth and phase
-    initial_state_vars = ["QueueLength0", "CurrentPhase0"]
-    for init_var in initial_state_vars:
+    # step 3: CPD for initial simulation variables
+    initial_vars = ["QueueLength0", "CurrentPhase0", "Alpha0", "Theta0", "Mu0"]
+    for init_var in initial_vars:
         learn_cpd_using_crosstab(dbn, init_var, data_dbn, logger)
 
-    # step 4: CPD for phase
-    learn_cpd_using_crosstab(dbn, "CurrentPhaset", data_bn, logger)
+    # step 4: CPD for later simulation variables
+    simulation_vars = ["CurrentPhaset", "Alphat", "Thetat", "Mut"]
+    for var in simulation_vars:
+        learn_cpd_using_crosstab(dbn, var, data_bn, logger)
 
     # step 5: CPD for QueueLength (group by phases and service rates)
     for mu_value in unique_mu:

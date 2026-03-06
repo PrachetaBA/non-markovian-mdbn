@@ -261,7 +261,8 @@ if __name__ == "__main__":
         config = yaml.safe_load(f)[f"experiment_{args.experiment_number}"]
 
     # Extract simulation input parameters
-    phase_rates = config["phase_rates"] # Gives us a list of lists
+    arrival_distributions = config["arrival_distributions"]
+    #phase_rates = config["phase_rates"] # Gives us a list of lists
     service_rates = config["service_rates"]
     max_iql = int(config.get("max_iql", 0))
     runs = config["runs"]
@@ -282,7 +283,11 @@ if __name__ == "__main__":
     max_queue_len_obs = 0
     
     if config['varying_iql']: 
-        for phase_rate_set in phase_rates:
+        #for phase_rate_set in phase_rates:
+        for dist in arrival_distributions:
+            phase_rate_set = dist["phase_rates"]
+            alpha = dist["alpha"]
+            theta = dist["theta"]
             for mu in service_rates:
                 for iql in range(0, max_iql + 1):
                     logger.info(f"Running Hypexp/M/1 for phase_rates={phase_rate_set}, mu={mu}, iql={iql}") 
@@ -303,11 +308,15 @@ if __name__ == "__main__":
                         max_queue_len_obs = max(max_queue_len_obs, run_max)
 
                         # attach run metadata and collect timeseries
-                        df_list.append(sim.time_series.assign(Run=RUN, Phase_Rates=str(phase_rate_set), Mu=mu, IQL=iql, End=sim_end))
+                        df_list.append(sim.time_series.assign(Run=RUN, Alpha=alpha,Theta=theta, Phase_Rates=str(phase_rate_set), Mu=mu, IQL=iql, End=sim_end))
                         RUN += 1
 
     else: 
-        for phase_rate_set in phase_rates:
+        #for phase_rate_set in phase_rates:
+        for dist in arrival_distributions:
+            phase_rate_set = dist["phase_rates"]
+            alpha = dist["alpha"]
+            theta = dist["theta"]
             for mu in service_rates:
                 logger.info(f"Running Hypexp/M/1 for phase_rates={phase_rate_set}, mu={mu}") 
                 for i in range(runs):
@@ -326,13 +335,13 @@ if __name__ == "__main__":
                     max_queue_len_obs = max(max_queue_len_obs, run_max)
 
                     # attach run metadata and collect timeseries
-                    df_list.append(sim.time_series.assign(Run=RUN, Phase_Rates=str(phase_rate_set), Mu=mu, IQL=0, End=sim_end))
+                    df_list.append(sim.time_series.assign(Run=RUN, Alpha=alpha,Theta=theta, Phase_Rates=str(phase_rate_set), Mu=mu, IQL=0, End=sim_end))
                     RUN += 1
     
 
     if len(df_list) > 0:
         df = pd.concat(df_list, ignore_index=True)
-        df = df[["Run", "Phase_Rates", "Mu", "Current_Phase", "IQL", "End", "Time", "Event", "Queue_Length"]]
+        df = df[["Run", "Alpha", "Theta", "Phase_Rates", "Mu", "Current_Phase", "IQL", "End", "Time", "Event", "Queue_Length"]]
         df.to_csv(outpath, index=False)
         logger.info(f"Wrote time series to {outpath}")
     else:

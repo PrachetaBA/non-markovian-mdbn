@@ -40,7 +40,6 @@ experiment_2:
   - 1.0
   simulation_end: 5.0
   varying_iql: false
-  
 experiment_3:
   max_iql: 0
   output_folder: data/simulation
@@ -60,4 +59,88 @@ experiment_3:
   - 0.9
   - 1.0
   simulation_end: 5.0
+  varying_iql: false
+experiment_4:
+  arrival_distributions:
+  - alpha: 3.7
+    phase_rates:
+    - 0.5148005148005148
+    - 0.5148005148005148
+    - 0.36700852035120457
+    - 0.8618701278822821
+    theta: 2.1
+  - alpha: 3.7
+    phase_rates:
+    - 0.3179650238473768
+    - 0.3179650238473768
+    - 0.22668173315809698
+    - 0.5323315495743507
+    theta: 3.4
+  - alpha: 5.3
+    phase_rates:
+    - 0.5390835579514824
+    - 0.5390835579514824
+    - 0.5390835579514824
+    - 0.5390835579514824
+    - 0.3308346591100984
+    - 1.4548796266041872
+    theta: 2.1
+  - alpha: 5.3
+    phase_rates:
+    - 0.33296337402885684
+    - 0.33296337402885684
+    - 0.33296337402885684
+    - 0.33296337402885684
+    - 0.20433905415623727
+    - 0.898602122314351
+    theta: 3.4
+  max_iql: 0
+  output_folder: data/simulation
+  runs: 20
+  service_rates:
+  - 0.2
+  - 0.3
+  simulation_end: 1000
+  varying_iql: false
+experiment_5:
+  arrival_distributions:
+  - alpha: 3.7
+    phase_rates:
+    - 0.5148005148005148
+    - 0.5148005148005148
+    - 0.36700852035120457
+    - 0.8618701278822821
+    theta: 2.1
+  - alpha: 3.7
+    phase_rates:
+    - 0.3179650238473768
+    - 0.3179650238473768
+    - 0.22668173315809698
+    - 0.5323315495743507
+    theta: 3.4
+  - alpha: 5.3
+    phase_rates:
+    - 0.5390835579514824
+    - 0.5390835579514824
+    - 0.5390835579514824
+    - 0.5390835579514824
+    - 0.3308346591100984
+    - 1.4548796266041872
+    theta: 2.1
+  - alpha: 5.3
+    phase_rates:
+    - 0.33296337402885684
+    - 0.33296337402885684
+    - 0.33296337402885684
+    - 0.33296337402885684
+    - 0.20433905415623727
+    - 0.898602122314351
+    theta: 3.4
+  max_iql: 3
+  output_folder: data/simulation
+  runs: 20
+  service_rates:
+  - 0.2
+  - 0.3
+  simulation_end: 10
   varying_iql: false

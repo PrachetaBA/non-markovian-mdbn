@@ -130,14 +130,27 @@ def create_hypoexp_sim_config(query_workload):
     input_config = input_config_data.get(f"experiment_{input_experiment_number}", None)
     
     # Step 2: Approx gamma with hypoexp, plot both distributions and compute CE
-    phase_rates_list = []
+    # phase_rates_list = []
+    # for alpha in input_config['alphas']:
+    #     for theta in input_config['thetas']:
+    #         phase_rates = gamma_hypoexponential_approximation(alpha, theta)
+    #         plot_gamma_vs_hypoexp(alpha, theta, phase_rates, input_experiment_number)
+    #         cross_entropy = compute_cross_entropy(alpha, theta, phase_rates)
+    #         print(f"Cross-entropy for alpha={alpha}, theta={theta}: {cross_entropy}")
+    #         phase_rates_list.append(phase_rates)
+    # 
+    arrival_distributions = []
     for alpha in input_config['alphas']:
         for theta in input_config['thetas']:
             phase_rates = gamma_hypoexponential_approximation(alpha, theta)
             plot_gamma_vs_hypoexp(alpha, theta, phase_rates, input_experiment_number)
             cross_entropy = compute_cross_entropy(alpha, theta, phase_rates)
             print(f"Cross-entropy for alpha={alpha}, theta={theta}: {cross_entropy}")
-            phase_rates_list.append(phase_rates) 
+            arrival_distributions.append({
+                "alpha": alpha,
+                "theta": theta,
+                "phase_rates": phase_rates
+            }) 
      
     # Step 3: Load existing config
     try: 
@@ -154,8 +167,17 @@ def create_hypoexp_sim_config(query_workload):
         experiment_number = 1
 
     # Step 5: Append top the yaml file
+    # config[f"experiment_{experiment_number}"] = {
+    #     "phase_rates": phase_rates_list,
+    #     "service_rates": input_config['service_rates'],
+    #     "runs": input_config.get('runs', 100),
+    #     "simulation_end": input_config.get('simulation_end', 1000),
+    #     "varying_iql": input_config.get('varying_iql', False),
+    #     "max_iql": input_config.get('max_iql', 0),
+    #     "output_folder": input_config.get('output_folder', 'results/')
+    # }
     config[f"experiment_{experiment_number}"] = {
-        "phase_rates": phase_rates_list,
+        "arrival_distributions": arrival_distributions,
         "service_rates": input_config['service_rates'],
         "runs": input_config.get('runs', 100),
         "simulation_end": input_config.get('simulation_end', 1000),
