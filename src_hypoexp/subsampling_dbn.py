@@ -90,8 +90,7 @@ def construct_dbn_hypoexp_m1_data(input_filename, output_filename, sampling_rate
 
         # If r == 1, initialize the dataframe columns
         if r == 1:
-            #colnames = []
-            colnames = ['Alpha', 'Theta']
+            colnames = ['Alpha0', 'Theta0']
             counter = 0
             while counter < time_step_counter:
                 colnames.extend([

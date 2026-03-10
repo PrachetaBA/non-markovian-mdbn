@@ -49,13 +49,15 @@ def hypoexp_construct_2tbn_data(input_filename, output_filename, sampling_rate):
     #simulation_end = float(df['Time'].max().ceil())
     simulation_end = float(np.ceil(df['Time'].max()))
     global_df = pl.DataFrame(schema=[
-        ("Alpha", pl.Float64),
-        ("Theta", pl.Float64),
+        ("Alpha_tprev", pl.Float64),
+        ("Theta_tprev", pl.Float64),
         ("Lambda_tprev", pl.Float64),
         ("Mu_tprev", pl.Float64),
         ("K_tprev", pl.Int64),
         ("CurrentPhase_tprev", pl.Int64),
         ("QueueLength_tprev", pl.Int64),
+        ("Alpha", pl.Float64),
+        ("Theta", pl.Float64),
         ("Lambda", pl.Float64),
         ("Mu", pl.Float64),
         ("K", pl.Int64),
@@ -81,8 +83,8 @@ def hypoexp_construct_2tbn_data(input_filename, output_filename, sampling_rate):
 
         # Initialize a new polars dataframe with the columns for the previous slice
         d1 = pl.DataFrame(schema=[
-            ("Alpha", pl.Float64),
-            ("Theta", pl.Float64),
+            ("Alpha_tprev", pl.Float64),
+            ("Theta_tprev", pl.Float64),
             ("Lambda_tprev", pl.Float64),
             ("Mu_tprev", pl.Float64),
             ("K_tprev", pl.Int64),
@@ -107,8 +109,8 @@ def hypoexp_construct_2tbn_data(input_filename, output_filename, sampling_rate):
             lambda_active = phase_rates[curr_phase - 1]
 
             time_series = pl.DataFrame({
-                "Alpha": [alpha_run],
-                "Theta": [theta_run],
+                "Alpha_tprev": [alpha_run],
+                "Theta_tprev": [theta_run],
                 "Lambda_tprev": [lambda_active],
                 "Mu_tprev": [mu_run],
                 "K_tprev": [k_run],
@@ -129,8 +131,8 @@ def hypoexp_construct_2tbn_data(input_filename, output_filename, sampling_rate):
         d2 = d2[1:, :]  # Remove first row
         last_row_values = d2.row(len(d2) - 1)  # Get the last row values
         last_row = pl.DataFrame({
-            'Alpha': [last_row_values[0]],
-            'Theta': [last_row_values[1]],
+            'Alpha_tprev': [last_row_values[0]],
+            'Theta_tprev': [last_row_values[1]],
             'Lambda_tprev': [last_row_values[2]],
             'Mu_tprev': [last_row_values[3]],
             'K_tprev': [last_row_values[4]],
@@ -138,11 +140,10 @@ def hypoexp_construct_2tbn_data(input_filename, output_filename, sampling_rate):
             'QueueLength_tprev': [last_row_values[6]],
         })
         d2 = d2.vstack(last_row)
-        # REMOVE static params from the *current* slice so we don't duplicate Alpha/Theta
-        d2 = d2.drop(["Alpha", "Theta"])
+        # Keep Alpha/Theta in both slices for consistency with other variables
         # Rename d2 columns to represent current slice variables
         d2.columns = [
-            'Lambda', 'Mu', 'K', 'CurrentPhase', 'QueueLength'
+            'Alpha', 'Theta', 'Lambda', 'Mu', 'K', 'CurrentPhase', 'QueueLength'
         ]
         d2 = d2[:len(d2) - 1, :]  # Remove the last row to make lengths equal
 

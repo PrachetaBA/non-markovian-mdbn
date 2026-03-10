@@ -249,16 +249,11 @@ def construct_dbn(bn_file,
     # ['Alpha', 'Theta', 'Lambda_tprev', 'Mu_tprev', 'K_tprev', 'CurrentPhase_tprev', 'QueueLength_tprev',
     #  'Lambda', 'Mu', 'K', 'CurrentPhase', 'QueueLength']
 
-    # If Alphat/Thetat not present, create current-slice copies (constant per run)
-    if 'Alpha' in data_bn.columns and 'Theta' in data_bn.columns:
-        data_bn['Alphat'] = data_bn['Alpha']
-        data_bn['Thetat'] = data_bn['Theta']
-
     # Now reorder columns explicitly to a known order, then rename to DBN variable names.
     data_bn = data_bn[[
-        'Alpha', 'Theta',
+        'Alpha_tprev', 'Theta_tprev',
         'Lambda_tprev', 'Mu_tprev', 'K_tprev', 'CurrentPhase_tprev', 'QueueLength_tprev',
-        'Alphat', 'Thetat',
+        'Alpha', 'Theta',
         'Lambda', 'Mu', 'K', 'CurrentPhase', 'QueueLength'
     ]]
 
