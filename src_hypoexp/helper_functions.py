@@ -1,6 +1,8 @@
 
 # hypoexp_fitting.py
 
+from pathlib import Path
+
 import numpy as np
 from scipy.optimize import minimize
 import torch
@@ -235,50 +237,57 @@ def fit_hypoexp(target, method="kl", k=4):
         return fit_hypoexp_cross_entropy(sampler,k)
 
 
-def get_optimal_subsampling_interval(self, max_queue_length: int):
+def get_optimal_subsampling_interval(max_queue_length, arrival_phase_rates, service_rate):
     """
     return optimal subsampling interval delta
     reference: https://www.jstor.org/stable/24340803?seq=4
     """
-    Q = self.generate_Q_matrix(max_queue_length)
+    Q = generate_Q_matrix(max_queue_length, arrival_phase_rates, service_rate)
     diagonal_entries = np.diagonal(Q)
     max_diag_abs = np.max(np.abs(diagonal_entries))
     delta = 1.0 / max_diag_abs
 
     return delta
 
-def generate_Q_matrix(self, max_queue_length: int):
+
+def generate_Q_matrix(max_queue_length, arrival_phase_rates, service_rate):
     """
-    builds generator matrix Q for HypoExp/M/1 queue
-    state = (phase, queue_length)
+    Generator matrix for HypoExp/M/1 queue.
+
+    Arrival process = Hypoexponential with phase rates λ1..λk
+    Service process = Exponential with rate μ
+
+    State = (arrival_phase, queue_length)
+
+    arrival_phase: 1..k
+    queue_length:  0..max_queue_length
     """
-    num_phases = self.num_phases
-    service_rate = 1.0 / self.input_params.mean_service_time
-    num_states = num_phases * (max_queue_length + 1)
+    k = len(arrival_phase_rates)
+    num_states = (max_queue_length + 1) * k
     Q = np.zeros((num_states, num_states))
 
     for queue_len in range(max_queue_length + 1):
-        for phase in range(1, num_phases + 1):
+        for phase in range(1, k + 1):
 
-            state_idx = queue_len * num_phases + (phase - 1)
+            state = queue_len * k + (phase - 1)
 
-            # arrival transition: phase advance or arrival after final phase
-            if phase < num_phases:
-                # transition to next phase in same queue length
-                next_state_idx = queue_len * num_phases + phase
-                Q[state_idx, next_state_idx] = self.phase_rates[phase - 1]
+            # Arrival phase transitions
+            if phase < k:
+                next_state = queue_len * k + phase
+                Q[state, next_state] += arrival_phase_rates[phase - 1]
+
             else:
-                # customer arrives (after last phase)
+                # final phase -> customer arrives
                 if queue_len < max_queue_length:
-                    next_state_idx = (queue_len + 1) * num_phases
-                    Q[state_idx, next_state_idx] = self.phase_rates[num_phases - 1]
+                    next_state = (queue_len + 1) * k + 0
+                    Q[state, next_state] += arrival_phase_rates[k - 1]
 
-            # service completed
+            # Service completion
             if queue_len > 0:
-                next_state_idx = (queue_len - 1) * num_phases + (phase - 1)
-                Q[state_idx, next_state_idx] = service_rate
+                next_state = (queue_len - 1) * k + (phase - 1)
+                Q[state, next_state] += service_rate
 
-            # set diagonal entries so rows add up to 0
-            Q[state_idx, state_idx] = -np.sum(Q[state_idx, :])
+            # Diagonal entry
+            Q[state, state] = -np.sum(Q[state])
 
     return Q

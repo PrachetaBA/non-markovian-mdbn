@@ -29,8 +29,7 @@ from pathlib import Path
 from math import ceil, sqrt
 import matplotlib.pyplot as plt
 from scipy.stats import gamma
-
-import helper_functions
+from helper_functions import get_optimal_subsampling_interval
 
 logger = logging.getLogger(__name__)
 
@@ -275,56 +274,30 @@ if __name__ == "__main__":
     outpath = output_root / f'hypoexp-m1-{args.experiment_number}.csv'
 
     base_seed = config.get("seed", 0)  # optional
-
     start_time = time.time()
     df_list = []
     RUN = 1
-    
+
     max_queue_len_obs = 0
+    min_delta_observed = float("inf")
+    # decide iql values to use based on varying_iql bool
+    iql_values = range(0, max_iql + 1) if config['varying_iql'] else [0]
     
-    if config['varying_iql']: 
-        #for phase_rate_set in phase_rates:
-        for dist in arrival_distributions:
-            phase_rate_set = dist["phase_rates"]
-            alpha = dist["alpha"]
-            theta = dist["theta"]
-            for mu in service_rates:
-                for iql in range(0, max_iql + 1):
-                    logger.info(f"Running Hypexp/M/1 for phase_rates={phase_rate_set}, mu={mu}, iql={iql}") 
-                    for i in range(runs):
-                        seed = base_seed + i
-                        sim = HypoExpM1Simulation(phase_rates=phase_rate_set,
-                                            mean_service_rate=mu,
-                                            simulation_end=sim_end,
-                                            seed=seed,
-                                            initial_queue_length=iql)
+    for dist in arrival_distributions:
+        phase_rate_set = dist["phase_rates"]
+        alpha = dist["alpha"]
+        theta = dist["theta"]
+        for mu in service_rates:
 
-                        while True:
-                            stop = sim.time_adv()
-                            if stop:
-                                break
-
-                        run_max = int(sim.time_series["Queue_Length"].max())
-                        max_queue_len_obs = max(max_queue_len_obs, run_max)
-
-                        # attach run metadata and collect timeseries
-                        df_list.append(sim.time_series.assign(Run=RUN, Alpha=alpha,Theta=theta, Phase_Rates=str(phase_rate_set), Mu=mu, IQL=iql, End=sim_end))
-                        RUN += 1
-
-    else: 
-        #for phase_rate_set in phase_rates:
-        for dist in arrival_distributions:
-            phase_rate_set = dist["phase_rates"]
-            alpha = dist["alpha"]
-            theta = dist["theta"]
-            for mu in service_rates:
-                logger.info(f"Running Hypexp/M/1 for phase_rates={phase_rate_set}, mu={mu}") 
+            for iql in iql_values:
+                logger.info(f"Running Hypexp/M/1 for phase_rates={phase_rate_set}, mu={mu}, iql={iql}") 
                 for i in range(runs):
                     seed = base_seed + i
                     sim = HypoExpM1Simulation(phase_rates=phase_rate_set,
-                                        mean_service_rate=mu,
-                                        simulation_end=sim_end,
-                                        seed=seed)
+                                              mean_service_rate=mu,
+                                              simulation_end=sim_end,
+                                              seed=seed,
+                                              initial_queue_length=iql)
 
                     while True:
                         stop = sim.time_adv()
@@ -335,9 +308,16 @@ if __name__ == "__main__":
                     max_queue_len_obs = max(max_queue_len_obs, run_max)
 
                     # attach run metadata and collect timeseries
-                    df_list.append(sim.time_series.assign(Run=RUN, Alpha=alpha,Theta=theta, Phase_Rates=str(phase_rate_set), Mu=mu, IQL=0, End=sim_end))
+                    df_list.append(sim.time_series.assign(Run=RUN, Alpha=alpha,Theta=theta, Phase_Rates=str(phase_rate_set), Mu=mu, IQL=iql, End=sim_end))
                     RUN += 1
-    
+            
+            # get optimal subsampling interval for this config
+            delta = get_optimal_subsampling_interval(max_queue_len_obs, phase_rate_set, mu)
+            logger.info(f"Optimal subsampling interval for alpha={alpha}, theta={theta}, mu={mu} = {delta}")
+            min_delta_observed = min(min_delta_observed, delta)
+
+    logger.info(f"Minimum optimal subsampling interval observed across all configs: {min_delta_observed}")
+    print(f"Minimum optimal subsampling interval observed across all configs: {min_delta_observed}")
 
     if len(df_list) > 0:
         df = pd.concat(df_list, ignore_index=True)
