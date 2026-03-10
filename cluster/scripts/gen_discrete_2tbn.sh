@@ -1,12 +1,14 @@
 #!/bin/bash
-#SBATCH --mem=10000  # Requested Memory
-#SBATCH -p cpu-long      # Partition
-#SBATCH -t 3-00:00:00  # Job time limit
-#SBATCH -o ../logs/gen_discrete_time_data/job-%j.out
-#SBATCH -e ../logs/gen_discrete_time_data/job-%j.err
+#SBATCH --job-name=construct_2tbn  # Job name
+#SBATCH --mem=3000  # Requested Memory
+#SBATCH --account=pi_phaas_umass_edu  # Account
+#SBATCH -p cpu      # Partition
+#SBATCH -t 6:00:00  # Job time limit
+#SBATCH -o ../logs/gen_hypoexp_data/job-%j.log
+#SBATCH -e ../logs/gen_hypoexp_data/job-%j.err
 
-module load miniconda/22.11.1-1
-conda activate mdbn-pyagrum
+module load conda/latest
+conda activate erm1-mdbn
 
-cd /work/pi_jensen_umass_edu/pboddavarama_umass_edu/synthesis/gitworktree/jackson-3qnetwork/
-python -u src/subsampling_2tbn.py --config_file $1 --experiment_number $2 -v 
+cd /scratch4/workspace/pboddavarama_umass_edu-erlang-mdbn/anant/erlang-queue-mdbn
+python -u src_hypoexp/subsampling_2tbn.py --config_file $1 --experiment_number $2
