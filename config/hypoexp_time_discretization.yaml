@@ -23,3 +23,13 @@ experiment_5:
   time_discretization_folder: "discrete_time"
   sampling_interval: 0.2
 
+experiment_6:
+  hypoexp_m1_time_series_experiment: 6
+  time_discretization_folder: "discrete_time"
+  sampling_interval: 0.578
+
+experiment_7:
+  hypoexp_m1_time_series_experiment: 7
+  time_discretization_folder: "discrete_time"
+  sampling_interval: 0.5
+
