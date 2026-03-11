@@ -47,9 +47,9 @@ class GammaM1Simulation:
         self.rng = np.random.default_rng(
             seed=seed)  # random number generator stream
         self.input_params = InputParameters(
-            alpha = query['start_parameters']['alpha'],
-            theta = query['start_parameters']['theta'],
-            mean_service_rate = query['start_parameters']['mean_service_rate'],
+            alpha = query['start_parameters']['Alpha'],
+            theta = query['start_parameters']['Theta'],
+            mean_service_rate = query['start_parameters']['Mu'],
             simulation_end=simulation_end)  # Input parameters
         self.server_states = ServerStates(
             state_server=False,
@@ -67,8 +67,8 @@ class GammaM1Simulation:
 
         # Set the initial queue lengths, as we want to be able to test
         # queries where it can be non zero.
-        if query['start_parameters']['L'] > 0:
-            self.curr_num_in_queue_system = query['start_parameters']['L']
+        if query['start_parameters']['QueueLength'] > 0:
+            self.curr_num_in_queue_system = query['start_parameters']['QueueLength']
             self.curr_num_in_queue = self.curr_num_in_queue_system - 1
             self.t_departure = self.clock + self.gen_service_time(
                 getattr(self.input_params, 'mean_service_rate'))
@@ -77,7 +77,7 @@ class GammaM1Simulation:
         # Record the time series of the simulation
         self.time_series = pd.DataFrame(columns=[
             "Alpha", "Theta", "Mu",
-            "Time", "Event", "QueueL"
+            "Time", "Event", "QueueLength"
         ])  # dataframe to record the events of the simulation
         row = pd.Series([
             self.input_params.alpha,
@@ -321,7 +321,7 @@ if __name__ == "__main__":
         type=str,
         help=
         "Path to the configuration file (e.g. configs/queries.json)",
-        default="configs/queries.json")
+        default="config/queries.json")
     parser.add_argument("--experiment_number",
                         "-e",
                         type=int,
@@ -354,9 +354,9 @@ if __name__ == "__main__":
         query_data = yaml.safe_load(file)
     query_details = query_data[f'experiment_{experiment_number}']
     
-    alpha = query_details['start_parameters']['alpha']
-    theta = query_details['start_parameters']['theta']
-    mean_service_rate = query_details['start_parameters']['mean_service_rate']
+    alpha = query_details['start_parameters']['Alpha']
+    theta = query_details['start_parameters']['Theta']
+    mean_service_rate = query_details['start_parameters']['Mu']
     simulation_end_time = query_details['query_time']
     gt_replications = query_details['gt_replications']
 
@@ -385,7 +385,7 @@ if __name__ == "__main__":
     df = pd.concat(df_list, ignore_index=True)
     df = df[[
         "Run", "Alpha", "Theta", "Mu",
-        "Time", "Event", "QueueL"
+        "Time", "Event", "QueueLength"
     ]]
     end_time = time.time()
 

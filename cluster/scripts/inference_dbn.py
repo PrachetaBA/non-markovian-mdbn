@@ -1,14 +1,11 @@
 """General script to submit multiple parallel jobs to the cluster for DBN inference."""
 import os
 
-INDICATOR = False
-INFERENCE = 'exact-lazyprop'
-NREPS = 30
-CONFIG_FILE = f'configs/indicator-{INDICATOR}_inference-{INFERENCE}_nreps-{NREPS}_pooled-True.json'
-DBN_NAME = f'dbn_indicator-{INDICATOR}_nreps-{NREPS}_pooled-True_extrapolation-True'
+CONFIG_FILE = 'config/query_workload_exp-1.json'
+DBN_NAME = 'dbn_hypoexpm1_exp8_crosstab'
 
 start = 1
-end = 200
+end = 500
 
 for experiment_number in range(start, end + 1):
     print(f'Submitting job for experiment {experiment_number}...')

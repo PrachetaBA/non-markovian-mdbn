@@ -216,8 +216,8 @@ if __name__ == "__main__":
         "-c",
         type=str,
         help=
-        "Path to the configuration file (e.g. configs/queries.json)",
-        default="configs/queries.json")
+        "Path to the configuration file (e.g. config/queries.json)",
+        default="config/queries.json")
     parser.add_argument("--experiment_number",
                         "-e",
                         type=int,
@@ -234,7 +234,7 @@ if __name__ == "__main__":
         '-t',
         type=str,
         help='Path to the time discretization configuration file',
-        default='configs/time_discretization.yaml',
+        default='config/hypoexp_time_discretization.yaml',
         required=False)
     parser.add_argument(
         '--dbn_name',
@@ -293,7 +293,8 @@ if __name__ == "__main__":
     logger.info(f"Posterior distribution: {query_dist}")
 
     # Create the posterior output folder if it does not exist
-    results_folder = f"{config['results_folder']}/{config['expt_name']}"
+    query_workload_name = f"{config_file.split('/')[-1].split('.')[0]}"
+    results_folder = f"{config['results_folder']}/{query_workload_name}"
     if not os.path.exists(results_folder):
         os.makedirs(results_folder)
 

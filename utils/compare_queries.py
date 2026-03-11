@@ -30,7 +30,7 @@ if __name__ == "__main__":
         "-c",
         type=str,
         help="Path to the configuration file (e.g. configs/queries.yaml)",
-        default="configs/queries.yaml")
+        default="config/query_workload_exp-1.json")
     parser.add_argument("--experiment_number",
                         "-e",
                         type=int,
@@ -44,22 +44,15 @@ if __name__ == "__main__":
                         '-s',
                         type=str,
                         help='Path to the simulation configuration file',
-                        default='configs/simulator.yaml',
+                        default='config/gamma_simulator.yaml',
                         required=False)
     parser.add_argument(
         '--time_disc_config',
         '-t',
         type=str,
         help='Path to the time discretization configuration file',
-        default='configs/time_discretization.yaml',
+        default='config/hypoexp_time_discretization.yaml',
         required=False)
-    parser.add_argument(
-        '--gt_folder',
-        '-g',
-        type=str,
-        help='Path to the folder containing the ground truth results',
-        default='data/queries_gt/queries_nreps-30',
-    )
     args = parser.parse_args()
     config_file = args.config_file
     experiment_number = args.experiment_number
@@ -84,22 +77,19 @@ if __name__ == "__main__":
     with open(args.sim_config, 'r', encoding='utf-8') as sfile:
         sim_data = yaml.safe_load(sfile)
         sim_exp = sim_data[
-            f"experiment_{time_discrete_exp['time_series_experiment']}"]
+            f"experiment_{time_discrete_exp['hypoexp_m1_time_series_experiment']}"]
         max_iql = sim_exp['max_iql']
 
     # Get ground truth probability distribution
-    # gt_folder = f"{query_details['gt_results_folder']}/{query_details['expt_name']}"
-    # if specific to the experiment, many query configs will share the same ground truth
-    # So we do not reproduce the ground truth experiments
-    gt_folder = args.gt_folder
-    with open(f"{gt_folder}/gt-exp-{experiment_number}.pkl", 'rb') as f:
+    query_workload_name = f"{config_file.split('/')[-1].split('.')[0]}"
+    with open(f"data/queries_gt/{query_workload_name}/gt-exp-{experiment_number}.pkl", 'rb') as f:
         gt_dict = pickle.load(f)
     gt = gt_dict['query_dist']
     ci = gt_dict['half_width']
     logger.info(f'Ground truth probability distribution: {gt}')
     logger.info(f'Confidence interval: {ci}')
-
-    results_folder = f"{query_details['results_folder']}/{query_details['expt_name']}"
+ 
+    results_folder = f"{query_details['results_folder']}/{query_workload_name}"
     dbn_output_filename = f"{results_folder}/posterior-exp-{experiment_number}.pkl"
     logger.debug(f'DBN output filename: {dbn_output_filename}')
 
@@ -167,7 +157,8 @@ if __name__ == "__main__":
     plt.title(f'{plot_title}\nJSD = {jsd_value:.3f}')
     
     # Create the figures folder if it does not exist
-    figures_folder = f"{query_details['figures_folder']}/{query_details['expt_name']}"
+    query_workload_filename = f'{config_file.split('/')[-1].split('.')[0]}'
+    figures_folder = f"{query_details['figures_folder']}/{query_workload_filename}"
     if not os.path.exists(figures_folder):
         os.makedirs(figures_folder)
     plt.savefig(f'{figures_folder}/fig-exp-{experiment_number}.png',

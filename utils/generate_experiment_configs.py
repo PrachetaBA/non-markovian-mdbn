@@ -121,7 +121,7 @@ def single_intervention(config_file,
         # query_time = float(rng.integers(2, max_time + 1))
         # Pick a query time that is a multiple of delta that lies between 1.0 and max_time
         possible_timepoints = [
-            round(x, 1) for x in np.arange(0.0, max_time + optimal_delta, optimal_delta)
+            round(x, 3) for x in np.arange(0.0, max_time + optimal_delta, optimal_delta)
         ]
         query_time = rng.choice(possible_timepoints[2:])
         # Pick an intervention time that is less than the query time
@@ -204,22 +204,29 @@ if __name__ == '__main__':
         1: {
            'time_discretization_experiment': 8,
            'simulation_config_expt': 8,
-           'max_ql': 10, 
+           'max_ql': 9, 
            'inference_algorithm': 'LazyPropagation',
            'dbn_name': 'dbn_hypoexpm1_exp8_crosstab'
         }, 
         2: {
             'time_discretization_experiment': 8,
             'simulation_config_expt': 8,
-            'max_ql': 10,
+            'max_ql': 9,
             'inference_algorithm': 'GibbsSampling',
             'dbn_name': 'dbn_hypoexpm1_exp8_crosstab'
         },
         3: {
             'time_discretization_experiment': 8,
             'simulation_config_expt': 8,
-            'max_ql': 10,
+            'max_ql': 9,
             'inference_algorithm': 'MonteCarloSampling',
+            'dbn_name': 'dbn_hypoexpm1_exp8_crosstab'
+        },
+        4: {
+            'time_discretization_experiment': 8,
+            'simulation_config_expt': 8,
+            'max_ql': 9,
+            'inference_algorithm': 'LazyPropagation',
             'dbn_name': 'dbn_hypoexpm1_exp8_crosstab'
         }
     }

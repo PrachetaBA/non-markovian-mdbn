@@ -1,4 +1,3 @@
-# TODO: Change to G/M/1 with Gamma
 # pylint: disable=logging-fstring-interpolation, pointless-string-statement
 """Function to compute and store the ground truth distribution.
 
@@ -20,7 +19,7 @@ import yaml
 logger = logging.getLogger('compute_montecarlo_gt')
 
 
-def compute_gt_pd(query, exp_num, gt_subfolder=None):
+def compute_gt_pd(query, exp_num, gt_folder=None):
     """Compute the ground truth probability distribution.
 
     Args:
@@ -33,19 +32,7 @@ def compute_gt_pd(query, exp_num, gt_subfolder=None):
     """
 
     # Extract the query details
-    query_variable = query['query_variable']
-
-    if query_variable == 'Lqa':
-        query_variable = 'QueueAL'
-    elif query_variable == 'Lqb':
-        query_variable = 'QueueBL'
-    elif query_variable == 'Lqc':
-        query_variable = 'QueueCL'
-
-    if gt_subfolder:
-        gt_folder = f"{query['gt_results_folder']}/{gt_subfolder}"
-    else:
-        gt_folder = f"{query['gt_results_folder']}/{query['expt_name']}"
+    query_variable = 'QueueLength'
     gt_filepath = f"{gt_folder}/gt-exp-{exp_num}.csv"
     df = pd.read_csv(gt_filepath)
 
@@ -62,13 +49,7 @@ def compute_gt_pd(query, exp_num, gt_subfolder=None):
 
     # Compute the maximum queue length ever observed
     logger.info(
-        f'Maximum queue length for Queue A observed in data: {df["QueueAL"].max()}'
-    )
-    logger.info(
-        f'Maximum queue length for Queue B observed in data: {df["QueueBL"].max()}'
-    )
-    logger.info(
-        f'Maximum queue length for Queue C observed in data: {df["QueueCL"].max()}'
+        f'Maximum queue length for Queue observed in data: {df["QueueLength"].max()}'
     )
     max_ql = query['maximum_ql']
     unique_l = list(range(max_ql + 1))
@@ -156,7 +137,7 @@ if __name__ == '__main__':
         "-c",
         type=str,
         help="Path to the configuration file (e.g. configs/queries.yaml)",
-        default="configs/queries.yaml")
+        default="config/queries.yaml")
     parser.add_argument("--experiment_number",
                         "-e",
                         type=int,
@@ -166,12 +147,6 @@ if __name__ == '__main__':
                         '-v',
                         help='Increase output verbosity',
                         action='store_true')
-    parser.add_argument('--gt_folder',
-                        '--g',
-                        type=str,
-                        help='Folder to store the ground truth results',
-                        default=None,
-                        required=False)
 
     args = parser.parse_args()
     config_file = args.config_file
@@ -186,19 +161,17 @@ if __name__ == '__main__':
     with open(config_file, 'r', encoding='utf-8') as file:
         query_data = yaml.safe_load(file)
     query_details = query_data[f'experiment_{experiment_number}']
+    query_workload_name = f'{config_file.split('/')[-1].split('.')[0]}'
+    gt_folder = f"{query_details['gt_results_folder']}/{query_workload_name}"
 
     # Compute the ground truth probability distribution
     gt_dict = compute_gt_pd(
         query_details,
         experiment_number,
-        gt_subfolder=args.gt_folder if args.gt_folder else None)
+        gt_folder=gt_folder)
 
     # Save the ground truth probability distribution
     # If the folder doesn't exist, create it
-    if not args.gt_folder:
-        gt_folder = f"{query_details['gt_results_folder']}/{query_details['expt_name']}"
-    else:
-        gt_folder = f"{query_details['gt_results_folder']}/{args.gt_folder}"
     if not os.path.exists(gt_folder):
         os.makedirs(gt_folder)
     gt_pd_filepath = (f"{gt_folder}/gt-exp-{experiment_number}.pkl")

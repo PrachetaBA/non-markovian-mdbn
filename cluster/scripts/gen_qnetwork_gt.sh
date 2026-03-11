@@ -6,9 +6,9 @@
 #SBATCH -o ../logs/gen_qnetwork_gt/job-%j.out
 #SBATCH -e ../logs/gen_qnetwork_gt/job-%j.err
 
-module load miniconda/22.11.1-1
-conda activate mdbn-pyagrum
+module load conda/latest
+conda activate /scratch4/workspace/pboddavarama_umass_edu-mdbn-qnetwork/conda_envs/pyagrum-gpu
 
-cd /work/pi_jensen_umass_edu/pboddavarama_umass_edu/synthesis/gitworktree/jackson-3qnetwork/
-python -u src/simulator_interventions.py --config_file $1 --experiment_number $2 --gt_folder $3
-python -u src/compute_montecarlo_gt.py --config_file $1 --experiment_number $2 --gt_folder $3
+cd /scratch4/workspace/pboddavarama_umass_edu-erlang-mdbn/pracheta/erlang-queue-mdbn
+python -u src_hypoexp/simulator_gamma_interventions.py --config_file $1 --experiment_number $2 -g $3
+python -u src_hypoexp/compute_montecarlo_gt.py --config_file $1 --experiment_number $2

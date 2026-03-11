@@ -72,7 +72,6 @@ def get_plot_title(query, delta, max_iql):
                 title += f"{iv_var}_{iv['intervention_start']} - {iv['intervention_value']}, "
     title += f"\nQuery: P({query['query_variable']}_{query['query_time']})"
     title += f"\nDelta: {delta}, IQL_Max: {max_iql}, GT reps: {query['gt_replications']}"
-    title += f"\nStructure: {','.join(query['dbn_edges'])}"
     return title
 
 
