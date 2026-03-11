@@ -46,3 +46,10 @@ experiment_7:
   maximum_ql: 5
   expt_name: "hypoexpm1_contruct_dbn_exp_7"
   use_crosstab: True
+
+experiment_8:
+  time_discretization_experiment: 8
+  dbn_output_folder: "discrete_time"
+  maximum_ql: 5
+  expt_name: "hypoexpm1_contruct_dbn_exp_8"
+  use_crosstab: True

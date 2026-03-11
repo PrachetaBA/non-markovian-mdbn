@@ -222,3 +222,43 @@ experiment_7:
   - 0.3
   simulation_end: 5
   varying_iql: true
+
+
+experiment_8:
+  arrival_distributions:
+  - alpha: 2.7
+    phase_rates:
+    - 0.5291005291005291
+    - 0.3757153711340552
+    - 0.8941258987072143
+    theta: 2.1
+  - alpha: 2.7
+    phase_rates:
+    - 0.32679738562091504
+    - 0.23205949393574002
+    - 0.552254231554456
+    theta: 3.4
+  - alpha: 4.3
+    phase_rates:
+    - 0.5537098560354374
+    - 0.5537098560354374
+    - 0.5537098560354374
+    - 0.3380510835626256
+    - 1.5293625485568896
+    theta: 2.1
+  - alpha: 4.3
+    phase_rates:
+    - 0.34199726402188785
+    - 0.34199726402188785
+    - 0.34199726402188785
+    - 0.20879625749456288
+    - 0.9446062799910199
+    theta: 3.4
+  max_iql: 5
+  output_folder: data/simulation
+  runs: 1000
+  service_rates:
+  - 0.2
+  - 0.3
+  simulation_end: 10
+  varying_iql: true
