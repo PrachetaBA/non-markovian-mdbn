@@ -6,3 +6,4 @@ figures/*
 output/
 results/
 .DS_Store
+.vscode/
