@@ -16,7 +16,7 @@ experiment_3:
 experiment_4:
   hypoexp_m1_time_series_experiment: 4
   time_discretization_folder: "discrete_time"
-  sampling_interval: 0.1
+  sampling_interval: 0.5
 
 experiment_5:
   hypoexp_m1_time_series_experiment: 5
@@ -36,6 +36,20 @@ experiment_7:
 experiment_8:
   hypoexp_m1_time_series_experiment: 8
   time_discretization_folder: "discrete_time"
-  sampling_interval: 0.547 # TODO: run again for 0.5 
+  sampling_interval: 0.547
 
+experiment_9:
+  hypoexp_m1_time_series_experiment: 9
+  time_discretization_folder: "discrete_time"
+  sampling_interval: 0.5
+
+experiment_10:
+  hypoexp_m1_time_series_experiment: 10
+  time_discretization_folder: "discrete_time"
+  sampling_interval: 0.5
+
+experiment_11:
+  hypoexp_m1_time_series_experiment: 11
+  time_discretization_folder: "discrete_time"
+  sampling_interval: 0.1
 

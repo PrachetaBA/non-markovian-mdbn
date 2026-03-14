@@ -309,46 +309,94 @@ def construct_dbn(bn_file,
     for var in simulation_vars:
         learn_cpd_using_crosstab(dbn, var, data_bn, logger)
 
-    # step 5: CPD for QueueLength (group by phases and service rates)
+    
+    # create figures dir once
+    project_root = Path.cwd()
+    figures_dir = project_root / "queuelength_distribution_figures"
+    figures_dir.mkdir(exist_ok=True)
+
+    bn_id = dbn.idFromName("QueueLengtht")
+    Lt_values = list(range(0, int(max_ql) + 1))
+
+    # learn once if crosstab
+    if use_crosstab:
+        learn_cpd_using_crosstab(dbn, "QueueLengtht", data_bn, logger)
+
+    # step 5 + plotting
     for mu_value in unique_mu:
         for phase_value in unique_phases:
 
-            # group by mu and phase
-            df_group = data_bn[
-                (data_bn['Mut'] == mu_value) &
-                (data_bn['CurrentPhase0'] == phase_value)
-            ][['QueueLength0', 'QueueLengtht']]
+            if not use_crosstab:
 
-            # get distributions for the 3 buckets
-            tm_0 = tm_l(df_group, 0, 'QueueLength0', 'QueueLengtht')
-            tm_1 = tm_l(df_group, 1, 'QueueLength0', 'QueueLengtht')
-            tm_ge2 = tm_l(df_group, 2, 'QueueLength0', 'QueueLengtht')
+                # group by mu and phase
+                df_group = data_bn[
+                    (data_bn['Mut'] == mu_value) &
+                    (data_bn['CurrentPhase0'] == phase_value)
+                ][['QueueLength0', 'QueueLengtht']]
 
-            # incase we get empty dicts
-            if not tm_0:
-                tm_0 = {0: 1.0}
-            if not tm_1:
-                tm_1 = {0: 1.0}
-            if not tm_ge2:
-                tm_ge2 = {0: 1.0}
+                # get distributions for the 3 buckets
+                tm_0 = tm_l(df_group, 0, 'QueueLength0', 'QueueLengtht')
+                tm_1 = tm_l(df_group, 1, 'QueueLength0', 'QueueLengtht')
+                tm_ge2 = tm_l(df_group, 2, 'QueueLength0', 'QueueLengtht')
 
-            # assign CPTs
-            for queue_len in range(0, max_ql + 1):
+                # incase we get empty dicts
+                if not tm_0:
+                    tm_0 = {0: 1.0}
+                if not tm_1:
+                    tm_1 = {0: 1.0}
+                if not tm_ge2:
+                    tm_ge2 = {0: 1.0}
 
-                if queue_len == 0:
-                    abs_prob = change_to_queuelength_distribution(tm_0, queue_len, max_ql)
-                elif queue_len == 1:
-                    abs_prob = change_to_queuelength_distribution(tm_1, queue_len, max_ql)
-                else: # pooled for >=2
-                    abs_prob = change_to_queuelength_distribution(tm_ge2, queue_len, max_ql)
+                # assign CPTs
+                for queue_len in range(0, max_ql + 1):
 
-                prob_list = [abs_prob[ql] for ql in range(0, max_ql + 1)]
+                    if queue_len == 0:
+                        abs_prob = change_to_queuelength_distribution(tm_0, queue_len, max_ql)
+                    elif queue_len == 1:
+                        abs_prob = change_to_queuelength_distribution(tm_1, queue_len, max_ql)
+                    else:  # pooled for >=2
+                        abs_prob = change_to_queuelength_distribution(tm_ge2, queue_len, max_ql)
 
-                dbn.cpt('QueueLengtht')[{
+                    prob_list = [abs_prob[ql] for ql in range(0, max_ql + 1)]
+
+                    dbn.cpt('QueueLengtht')[{
+                        'Mut': str(mu_value),
+                        'CurrentPhase0': str(phase_value),
+                        'QueueLength0': queue_len
+                    }] = prob_list
+
+            # ---------- plotting (common for both) ----------
+            plt.figure(figsize=(8, 6))
+            colors = plt.cm.viridis(np.linspace(0, 1, len(Lt_values)))
+
+            for ql0, color in zip(Lt_values, colors):
+
+                plot_dist = dbn.cpt(bn_id)[{
                     'Mut': str(mu_value),
                     'CurrentPhase0': str(phase_value),
-                    'QueueLength0': queue_len
-                }] = prob_list
+                    'QueueLength0': ql0
+                }]
+
+                plt.plot(range(len(plot_dist)), plot_dist,
+                        color=color,
+                        label=f"L0={ql0}")
+
+            plt.xlabel("Queue Length at t")
+            plt.ylabel("P(Lt | L0)")
+
+            if use_crosstab:
+                plt.title(f"Crosstab: μ={mu_value}, phase={phase_value}")
+                fname = f"experiment{exp_no}_crosstab_mu{mu_value}_phase{phase_value}.png"
+            else:
+                plt.title(f"TML: μ={mu_value}, phase={phase_value}")
+                fname = f"experiment{exp_no}_tml_mu{mu_value}_phase{phase_value}.png"
+
+            plt.legend()
+            plt.grid(True)
+            plt.savefig(figures_dir / fname, dpi=300, bbox_inches="tight")
+            print("Saving plot at ", figures_dir / fname)
+            plt.close()
+    # ####################### Trial Figures ########################
 
     logger.debug('Finished processing the queue length variable QueueLengtht')
     logger.info("DBN constructed successfully")

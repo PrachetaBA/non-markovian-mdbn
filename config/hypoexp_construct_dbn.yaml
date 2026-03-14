@@ -24,7 +24,7 @@ experiment_4:
   dbn_output_folder: "discrete_time"
   maximum_ql: 5
   expt_name: "hypoexpm1_contruct_dbn_exp_4"
-  use_crosstab: True
+  use_crosstab: false
 
 experiment_5:
   time_discretization_experiment: 5
@@ -53,3 +53,24 @@ experiment_8:
   maximum_ql: 5
   expt_name: "hypoexpm1_contruct_dbn_exp_8"
   use_crosstab: True
+
+experiment_9:
+  time_discretization_experiment: 9
+  dbn_output_folder: "discrete_time"
+  maximum_ql: 5
+  expt_name: "hypoexpm1_contruct_dbn_exp_9"
+  use_crosstab: false
+
+experiment_10:
+  time_discretization_experiment: 10
+  dbn_output_folder: "discrete_time"
+  maximum_ql: 5
+  expt_name: "hypoexpm1_contruct_dbn_exp_10"
+  use_crosstab: True
+
+experiment_11:
+  time_discretization_experiment: 11
+  dbn_output_folder: "discrete_time"
+  maximum_ql: 5
+  expt_name: "hypoexpm1_contruct_dbn_exp_11"
+  use_crosstab: False

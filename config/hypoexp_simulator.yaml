@@ -14,6 +14,7 @@ experiment_1:
   - 1.0
   simulation_end: 5.0
   varying_iql: false
+
 experiment_2:
   max_iql: 0
   output_folder: data/simulation
@@ -60,48 +61,46 @@ experiment_3:
   - 1.0
   simulation_end: 5.0
   varying_iql: false
-experiment_4:
+
+experiment_4: # same as baseline but with 1 run to test plotting functionality
   arrival_distributions:
-  - alpha: 3.7
+  - alpha: 2.7
     phase_rates:
-    - 0.5148005148005148
-    - 0.5148005148005148
-    - 0.36700852035120457
-    - 0.8618701278822821
+    - 0.5291005291005291
+    - 0.3757153711340552
+    - 0.8941258987072143
     theta: 2.1
-  - alpha: 3.7
+  - alpha: 2.7
     phase_rates:
-    - 0.3179650238473768
-    - 0.3179650238473768
-    - 0.22668173315809698
-    - 0.5323315495743507
+    - 0.32679738562091504
+    - 0.23205949393574002
+    - 0.552254231554456
     theta: 3.4
-  - alpha: 5.3
+  - alpha: 4.3
     phase_rates:
-    - 0.5390835579514824
-    - 0.5390835579514824
-    - 0.5390835579514824
-    - 0.5390835579514824
-    - 0.3308346591100984
-    - 1.4548796266041872
+    - 0.5537098560354374
+    - 0.5537098560354374
+    - 0.5537098560354374
+    - 0.3380510835626256
+    - 1.5293625485568896
     theta: 2.1
-  - alpha: 5.3
+  - alpha: 4.3
     phase_rates:
-    - 0.33296337402885684
-    - 0.33296337402885684
-    - 0.33296337402885684
-    - 0.33296337402885684
-    - 0.20433905415623727
-    - 0.898602122314351
+    - 0.34199726402188785
+    - 0.34199726402188785
+    - 0.34199726402188785
+    - 0.20879625749456288
+    - 0.9446062799910199
     theta: 3.4
-  max_iql: 0
+  max_iql: 5
   output_folder: data/simulation
-  runs: 20
+  runs: 5
   service_rates:
   - 0.2
   - 0.3
-  simulation_end: 1000
-  varying_iql: false
+  simulation_end: 10
+  varying_iql: true
+
 experiment_5:
   arrival_distributions:
   - alpha: 3.7
@@ -183,7 +182,6 @@ experiment_6:
   simulation_end: 10
   varying_iql: true
 
-
 experiment_7:
   arrival_distributions:
   - alpha: 2.7
@@ -223,8 +221,7 @@ experiment_7:
   simulation_end: 5
   varying_iql: true
 
-
-experiment_8:
+experiment_8: # current baseline with 1000 runs
   arrival_distributions:
   - alpha: 2.7
     phase_rates:
@@ -261,4 +258,121 @@ experiment_8:
   - 0.2
   - 0.3
   simulation_end: 10
+  varying_iql: true
+
+experiment_9: 
+  arrival_distributions:
+  - alpha: 2.7
+    phase_rates:
+    - 0.5291005291005291
+    - 0.3757153711340552
+    - 0.8941258987072143
+    theta: 2.1
+  - alpha: 2.7
+    phase_rates:
+    - 0.32679738562091504
+    - 0.23205949393574002
+    - 0.552254231554456
+    theta: 3.4
+  - alpha: 4.3
+    phase_rates:
+    - 0.5537098560354374
+    - 0.5537098560354374
+    - 0.5537098560354374
+    - 0.3380510835626256
+    - 1.5293625485568896
+    theta: 2.1
+  - alpha: 4.3
+    phase_rates:
+    - 0.34199726402188785
+    - 0.34199726402188785
+    - 0.34199726402188785
+    - 0.20879625749456288
+    - 0.9446062799910199
+    theta: 3.4
+  max_iql: 5
+  output_folder: data/simulation
+  runs: 1000
+  service_rates:
+  - 0.2
+  - 0.3
+  simulation_end: 10
+  varying_iql: true
+
+experiment_10: # same as the baseline but with 5000 runs
+  arrival_distributions:
+  - alpha: 2.7
+    phase_rates:
+    - 0.5291005291005291
+    - 0.3757153711340552
+    - 0.8941258987072143
+    theta: 2.1
+  - alpha: 2.7
+    phase_rates:
+    - 0.32679738562091504
+    - 0.23205949393574002
+    - 0.552254231554456
+    theta: 3.4
+  - alpha: 4.3
+    phase_rates:
+    - 0.5537098560354374
+    - 0.5537098560354374
+    - 0.5537098560354374
+    - 0.3380510835626256
+    - 1.5293625485568896
+    theta: 2.1
+  - alpha: 4.3
+    phase_rates:
+    - 0.34199726402188785
+    - 0.34199726402188785
+    - 0.34199726402188785
+    - 0.20879625749456288
+    - 0.9446062799910199
+    theta: 3.4
+  max_iql: 5
+  output_folder: data/simulation
+  runs: 5000
+  service_rates:
+  - 0.2
+  - 0.3
+  simulation_end: 10
+  varying_iql: true
+
+experiment_11: # trying new stable queues
+  arrival_distributions:
+  - alpha: 2.7
+    phase_rates:
+    - 1.8518518518518516
+    - 1.3150037989691932
+    - 3.12944064547525
+    theta: 0.6
+  - alpha: 2.7
+    phase_rates:
+    - 0.9259259259259258
+    - 0.6575018994845966
+    - 1.564720322737625
+    theta: 1.2
+  - alpha: 4.3
+    phase_rates:
+    - 1.9379844961240313
+    - 1.9379844961240313
+    - 1.9379844961240313
+    - 1.1831787924691897
+    - 5.3527689199491135
+    theta: 0.6
+  - alpha: 4.3
+    phase_rates:
+    - 0.9689922480620157
+    - 0.9689922480620157
+    - 0.9689922480620157
+    - 0.5915893962345948
+    - 2.6763844599745568
+    theta: 1.2
+  max_iql: 5
+  output_folder: data/simulation
+  runs: 1000
+  service_rates:
+  - 0.7
+  - 0.9
+  simulation_end: 20
   varying_iql: true
