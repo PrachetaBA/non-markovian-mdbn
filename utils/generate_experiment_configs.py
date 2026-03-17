@@ -228,6 +228,20 @@ if __name__ == '__main__':
             'max_ql': 9,
             'inference_algorithm': 'LazyPropagation',
             'dbn_name': 'dbn_hypoexpm1_exp8_crosstab'
+        },
+        5: { # running bif 9
+            'time_discretization_experiment': 9,
+            'simulation_config_expt': 9,
+            'max_ql': 9,
+            'inference_algorithm': 'LazyPropagation',
+            'dbn_name': 'dbn_hypoexpm1_exp9'
+        },
+        6: { # running bif 11
+            'time_discretization_experiment': 11,
+            'simulation_config_expt': 11,
+            'max_ql': 16,
+            'inference_algorithm': 'LazyPropagation',
+            'dbn_name': 'dbn_hypoexpm1_exp11'
         }
     }
     

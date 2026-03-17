@@ -1,8 +1,8 @@
 """General script to submit multiple parallel jobs to the cluster for DBN inference."""
 import os
 
-CONFIG_FILE = 'config/query_workload_exp-1.json'
-DBN_NAME = 'dbn_hypoexpm1_exp8_crosstab'
+CONFIG_FILE = 'config/query_workload_exp-6.json'
+DBN_NAME = 'dbn_hypoexpm1_exp11'
 
 start = 1
 end = 500

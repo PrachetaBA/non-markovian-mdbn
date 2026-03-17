@@ -939,7 +939,7 @@
         "query_variable": "QueueLength",
         "query_time": 19.2,
         "results_folder": "output/queries",
-        "gt_replications": 1000,
+        "gt_replications": 50000,
         "gt_results_folder": "data/queries_gt",
         "figures_folder": "figures/queries",
         "expt_name": "dbn_hypoexpm1_exp11"

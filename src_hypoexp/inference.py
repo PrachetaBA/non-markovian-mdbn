@@ -10,6 +10,7 @@ import argparse
 import logging
 import math
 import os
+from pathlib import Path
 import pickle
 import time
 import re
@@ -177,12 +178,13 @@ def run_inference_hypoexp(dbn, query, delta):
         inference_engine.setEpsilon(query['epsilon'])
     else: 
         pass # Do nothing (possible that we have not specified the inference_algorithm)
-    heavy_computation_start_time = time.time()
-    inference_engine.makeInference()
 
     # For all interventions of type 'conditional', set the evidence
     for ev_var, ev_val in zip(conditional_vars, conditional_vals):
         inference_engine.addEvidence(ev_var, ev_val)
+
+    heavy_computation_start_time = time.time()
+    inference_engine.makeInference()
 
     # Extract the posterior probability distribution and return the results
     compute_posterior_start_time = time.time()
@@ -277,14 +279,16 @@ if __name__ == "__main__":
     logger.info(f"Sampling Interval: {sampling_interval}")
     logger.info(f"Maximum Queue Length: {maximum_queue_length}")
 
+    project_root = Path(__file__).resolve().parents[1]
+
     # Constructed DBN filename
-    CONSTRUCTED_DBN_FILENAME = f"{constructed_dbn_folder}/{dbn_name}.bif"
+    CONSTRUCTED_DBN_FILENAME = project_root / constructed_dbn_folder / f"{dbn_name}.bif"
     logger.info(f"Constructed DBN filename: {CONSTRUCTED_DBN_FILENAME}")
 
     # Load the DBN specified by the BIF file
     logger.info("Loading the BN specified by the BIF file ...")
     constructed_dbn = gm.BayesNet()
-    constructed_dbn.loadBIF(CONSTRUCTED_DBN_FILENAME)
+    constructed_dbn.loadBIF(str(CONSTRUCTED_DBN_FILENAME))
 
     # Run erm1 inference
     logger.info(f"Running inference for experiment {experiment_number}")

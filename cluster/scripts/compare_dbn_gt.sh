@@ -5,8 +5,8 @@
 #SBATCH -o ../logs/compare_dbn_gt/job-%j.out
 #SBATCH -e ../logs/compare_dbn_gt/job-%j.err
 
-module load miniconda/22.11.1-1
-conda activate mdbn-pyagrum
+module load conda/latest
+conda activate erm1-mdbn
 
-cd /work/pi_jensen_umass_edu/pboddavarama_umass_edu/synthesis/gitworktree/markovian-qnetwork/
+cd /scratch4/workspace/pboddavarama_umass_edu-erlang-mdbn/anant/erlang-queue-mdbn
 python -u utils/compare_queries.py --config_file $1 --experiment_number $2

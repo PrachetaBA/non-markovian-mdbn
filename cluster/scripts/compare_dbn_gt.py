@@ -1,10 +1,10 @@
 """General script to submit multiple parallel jobs to the cluster for comparing DBN and gt."""
 import os
 
-CONFIG_FILE = 'configs/tandemq_queries_markov_1.json'
+CONFIG_FILE = 'config/query_workload_exp-6.json'
 
-start = 65
-end = 68
+start = 1
+end = 500
 
 for experiment_number in range(start, end + 1):
     print(f'Submitting job for experiment {experiment_number}...')

@@ -133,7 +133,7 @@ class GammaM1Simulation:
 
         self.clock = next_event_time  # Reset the clock
 
-        if next_event_time >= self.input_params.simulation_end:
+        if next_event_time > self.input_params.simulation_end:
             self.log_query("Simulation End")
             logger.debug(f"Simulation ended, not completed: {event_times}")
             return True  # Stop the simulation if the end time is reached
@@ -217,8 +217,10 @@ class GammaM1Simulation:
         """Function to change parameters when there is an intervention."""
         logger.debug(f'Parameter Intervention: {evidence_var} = {evidence_val}')
         logger.debug(f'Current parameters: {self.input_params}')
-        if evidence_var == f'alpha' or evidence_var == f'theta':
-            setattr(self.input_params, evidence_var, evidence_val)
+        if evidence_var == 'Alpha' or evidence_var == 'Theta':
+            #setattr(self.input_params, evidence_var, evidence_val)
+            self.input_params.alpha = evidence_val if evidence_var == 'Alpha' else self.input_params.alpha
+            self.input_params.theta = evidence_val if evidence_var == 'Theta' else self.input_params.theta
             if self.t_arrival >= self.clock:
                 self.t_arrival = self.clock + self.gen_int_arr(
                     self.input_params.alpha, self.input_params.theta)
@@ -231,13 +233,13 @@ class GammaM1Simulation:
 
     def queue_condition(self, evidence_var, evidence_val):
         """Function to check whether the queue condition is satisfied."""
-        if evidence_var == 'L':
+        if evidence_var == 'QueueLength':
             if self.curr_num_in_queue_system == evidence_val:
                 self.log_query("Conditional")
 
     def queue_intervention(self, evidence_var, evidence_val):
         """Function to intervene on the queue lengths."""
-        if evidence_var == f'L':
+        if evidence_var == 'QueueLength':
             if evidence_val == 0:
                 # The system has to be cleared immediately, current service is dropped
                 self.curr_num_in_queue = 0 
@@ -269,7 +271,7 @@ class GammaM1Simulation:
         """Function to add or subtract from the queue lengths."""
         logger.debug('Values of the system before intervention')
         logger.debug(f'Queue system: {self.curr_num_in_queue_system}')
-        if evidence_var == 'L':
+        if evidence_var == 'QueueLength':
             if evidence_type == 'additive':
                 if self.curr_num_in_queue_system == 0:
                     self.curr_num_in_queue_system = evidence_val

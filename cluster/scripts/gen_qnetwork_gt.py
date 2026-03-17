@@ -4,9 +4,9 @@ import os
 
 
 start = 1
-end = 200
-CONFIG_FILE = 'config/query_workload_exp-1.json'
-GT_FOLDER = 'query_workload_exp-1'
+end = 500
+CONFIG_FILE = 'config/query_workload_exp-6.json'
+GT_FOLDER = 'dbn_hypoexpm1_exp11'
 
 for experiment_number in range(start, end + 1):
     print(f'Submitting job for experiment {experiment_number}...')

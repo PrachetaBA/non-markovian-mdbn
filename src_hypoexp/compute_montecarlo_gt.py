@@ -161,8 +161,9 @@ if __name__ == '__main__':
     with open(config_file, 'r', encoding='utf-8') as file:
         query_data = yaml.safe_load(file)
     query_details = query_data[f'experiment_{experiment_number}']
-    query_workload_name = f'{config_file.split('/')[-1].split('.')[0]}'
-    gt_folder = f"{query_details['gt_results_folder']}/{query_workload_name}"
+    #query_workload_name = f"{config_file.split('/')[-1].split('.')[0]}"
+    #gt_folder = f"{query_details['gt_results_folder']}/{query_workload_name}"
+    gt_folder = f"{query_details['gt_results_folder']}/{query_details['expt_name']}"
 
     # Compute the ground truth probability distribution
     gt_dict = compute_gt_pd(

@@ -82,7 +82,8 @@ if __name__ == "__main__":
 
     # Get ground truth probability distribution
     query_workload_name = f"{config_file.split('/')[-1].split('.')[0]}"
-    with open(f"data/queries_gt/{query_workload_name}/gt-exp-{experiment_number}.pkl", 'rb') as f:
+    #with open(f"data/queries_gt/{query_workload_name}/gt-exp-{experiment_number}.pkl", 'rb') as f:
+    with open(f"data/queries_gt/{query_details['expt_name']}/gt-exp-{experiment_number}.pkl", 'rb') as f:
         gt_dict = pickle.load(f)
     gt = gt_dict['query_dist']
     ci = gt_dict['half_width']
@@ -157,7 +158,8 @@ if __name__ == "__main__":
     plt.title(f'{plot_title}\nJSD = {jsd_value:.3f}')
     
     # Create the figures folder if it does not exist
-    query_workload_filename = f'{config_file.split('/')[-1].split('.')[0]}'
+    #query_workload_filename = f'{config_file.split('/')[-1].split('.')[0]}'
+    query_workload_filename = f"{config_file.split('/')[-1].split('.')[0]}"
     figures_folder = f"{query_details['figures_folder']}/{query_workload_filename}"
     if not os.path.exists(figures_folder):
         os.makedirs(figures_folder)
