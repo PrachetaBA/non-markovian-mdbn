@@ -7,8 +7,9 @@
 #SBATCH -e ../logs/gen_qnetwork_gt/job-%j.err
 
 module load conda/latest
-conda activate /scratch4/workspace/pboddavarama_umass_edu-mdbn-qnetwork/conda_envs/pyagrum-gpu
+conda activate erm1-mdbn
 
 cd /scratch4/workspace/pboddavarama_umass_edu-erlang-mdbn/anant/erlang-queue-mdbn
+python -u src_hypoexp/simulator_hypoexp_interventions.py --config_file $1 --experiment_number $2 -g $3
 python -u src_hypoexp/simulator_gamma_interventions.py --config_file $1 --experiment_number $2 -g $3
 python -u src_hypoexp/compute_montecarlo_gt.py --config_file $1 --experiment_number $2

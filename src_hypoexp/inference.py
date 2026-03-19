@@ -16,8 +16,8 @@ import time
 import re
 import warnings
 
-import pyagrum as gm
-import pyagrum.lib.dynamicBN as gdynbn
+import pyAgrum as gm
+import pyAgrum.lib.dynamicBN as gdynbn
 import yaml
 
 warnings.filterwarnings("ignore", category=DeprecationWarning)
