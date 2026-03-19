@@ -1,8 +1,8 @@
 # pylint: disable=logging-fstring-interpolation
 """
-Simulation model of an G/M/1 queue with a Gamma distribution.
+Simulation model of an HypoExp/M/1 queue.
 Input parameters: 
-    Gamma: 
+    Gamma approximation:
         alpha: shape
         theta: scale
     Exponential:
@@ -20,6 +20,9 @@ import yaml
 import numpy as np
 import pandas as pd
 
+# Make sure gamma_hypoexponential_approximation(alpha, theta) is available in your project.
+from gamma_to_hypoexp import gamma_hypoexponential_approximation
+
 warnings.simplefilter(action='ignore', category=FutureWarning)
 logger = logging.getLogger('simulator_interventions_logger')
 
@@ -28,6 +31,7 @@ class InputParameters:
     """Dataclass to store the input parameters of the simulation."""
     alpha: float
     theta: float
+    phase_rates: list
     mean_service_rate: float
     simulation_end: float
 
@@ -37,7 +41,7 @@ class ServerStates:
     state_server: bool
 
 class GammaM1Simulation:
-    """Class to simulate a Gamma/M/1 queue."""
+    """Class to simulate a HypoExp/M/1 queue."""
 
     def __init__(self,
                  simulation_end,
@@ -46,11 +50,21 @@ class GammaM1Simulation:
         self.clock = 0.0  # Simulation clock
         self.rng = np.random.default_rng(
             seed=seed)  # random number generator stream
+
+        phase_rates = gamma_hypoexponential_approximation(
+            query['start_parameters']['Alpha'],
+            query['start_parameters']['Theta'])
+
         self.input_params = InputParameters(
             alpha = query['start_parameters']['Alpha'],
             theta = query['start_parameters']['Theta'],
+            phase_rates = phase_rates,
             mean_service_rate = query['start_parameters']['Mu'],
             simulation_end=simulation_end)  # Input parameters
+
+        self.num_phases = len(self.input_params.phase_rates)
+        self.phase_counter = 1
+
         self.server_states = ServerStates(
             state_server=False,
         )  # Server states initialized to default 0
@@ -126,7 +140,7 @@ class GammaM1Simulation:
             evidence_type = self.evidence_types.pop(next_event_idx - 2)
             evidence_var = self.evidence_variables.pop(next_event_idx - 2)
             self.evidence_times.pop(next_event_idx - 2)
-        else: 
+        else:
             evidence_val = None
             evidence_type = None
             evidence_var = None
@@ -138,7 +152,7 @@ class GammaM1Simulation:
             logger.debug(f"Simulation ended, not completed: {event_times}")
             return True  # Stop the simulation if the end time is reached
 
-        if next_event_idx == 0: 
+        if next_event_idx == 0:
             self.arrival()
         elif next_event_idx == 1:
             self.departure()
@@ -157,10 +171,17 @@ class GammaM1Simulation:
     def arrival(self):
         """Function to handle the arrival event into the queue specified by the queue_id."""
         # Depending on the queue_id, increment the number of people in the system
+        if self.phase_counter < self.num_phases:
+            self.phase_counter += 1
+            self.t_arrival = self.clock + self.gen_int_arr(
+                self.input_params.alpha, self.input_params.theta)
+            return
+
+        self.phase_counter = 1
         self.curr_num_in_queue_system += 1
 
         # If the queue is empty and the server is idle, schedule the departure
-        if self.curr_num_in_queue == 0 and not self.server_states.state_server: 
+        if self.curr_num_in_queue == 0 and not self.server_states.state_server:
             self.server_states.state_server = True
             service_time = self.gen_service_time(self.input_params.mean_service_rate)
             self.t_departure = self.clock + service_time
@@ -168,7 +189,8 @@ class GammaM1Simulation:
             self.curr_num_in_queue += 1
 
         # Set the clock for the next exogenous arrival to the queue
-        self.t_arrival = self.clock + self.gen_int_arr(self.input_params.alpha, self.input_params.theta)
+        self.t_arrival = self.clock + self.gen_int_arr(
+            self.input_params.alpha, self.input_params.theta)
 
         # Record the arrival event in the time series
         self.log_query(f"Arrival")
@@ -183,19 +205,25 @@ class GammaM1Simulation:
         self.curr_num_in_queue_system -= 1
 
         # If the queue is not empty, schedule the next departure
-        if self.curr_num_in_queue > 0: 
+        if self.curr_num_in_queue > 0:
             service_time = self.gen_service_time(self.input_params.mean_service_rate)
             self.t_departure = self.clock + service_time
             self.curr_num_in_queue -= 1
-        else: 
+        else:
             self.t_departure = float('inf')
-            self.server_states.state_server = False   
+            self.server_states.state_server = False
 
         self.log_query(f"Departure")
 
     def gen_int_arr(self, alpha, theta):
-        """Function to generate the interarrival times using a Gamma distribution."""
-        return self.rng.gamma(shape=alpha, scale=theta, size=1)[0] # TODO: Check correct rate vs. inverse
+        """Function to generate the interarrival times using a HypoExp distribution."""
+        phase_index = max(0, self.phase_counter - 1)
+
+        if phase_index >= len(self.input_params.phase_rates):
+            phase_index = len(self.input_params.phase_rates) - 1
+
+        phase_lambda = self.input_params.phase_rates[phase_index]
+        return self.rng.exponential(scale=(1.0 / phase_lambda), size=1)[0]
 
     def gen_service_time(self, mean_service_rate):
         """Function to generate the service times using a Poisson distribution."""
@@ -218,9 +246,12 @@ class GammaM1Simulation:
         logger.debug(f'Parameter Intervention: {evidence_var} = {evidence_val}')
         logger.debug(f'Current parameters: {self.input_params}')
         if evidence_var == 'Alpha' or evidence_var == 'Theta':
-            #setattr(self.input_params, evidence_var, evidence_val)
             self.input_params.alpha = evidence_val if evidence_var == 'Alpha' else self.input_params.alpha
             self.input_params.theta = evidence_val if evidence_var == 'Theta' else self.input_params.theta
+            self.input_params.phase_rates = gamma_hypoexponential_approximation(
+                self.input_params.alpha, self.input_params.theta)
+            self.num_phases = len(self.input_params.phase_rates)
+            self.phase_counter = 1
             if self.t_arrival >= self.clock:
                 self.t_arrival = self.clock + self.gen_int_arr(
                     self.input_params.alpha, self.input_params.theta)
@@ -242,10 +273,11 @@ class GammaM1Simulation:
         if evidence_var == 'QueueLength':
             if evidence_val == 0:
                 # The system has to be cleared immediately, current service is dropped
-                self.curr_num_in_queue = 0 
+                self.curr_num_in_queue = 0
                 self.curr_num_in_queue_system = 0
                 self.server_states.state_server = False
                 self.t_departure = float('inf')
+                self.phase_counter = 1
                 self.t_arrival = self.clock + self.gen_int_arr(
                     self.input_params.alpha, self.input_params.theta)
             elif evidence_val > 0:
@@ -254,6 +286,7 @@ class GammaM1Simulation:
                 if self.server_states.state_server:
                     self.curr_num_in_queue = max(evidence_val - 1, 0)
                     self.curr_num_in_queue_system = evidence_val
+                    self.phase_counter = 1
                     self.t_arrival = self.clock + self.gen_int_arr(
                         self.input_params.alpha, self.input_params.theta)
                 else:
@@ -263,6 +296,7 @@ class GammaM1Simulation:
                         self.input_params.mean_service_rate)
                     self.curr_num_in_queue = max(evidence_val - 1, 0)
                     self.curr_num_in_queue_system = evidence_val
+                    self.phase_counter = 1
                     self.t_arrival = self.clock + self.gen_int_arr(
                         self.input_params.alpha, self.input_params.theta)
         self.log_query("Intervention")
@@ -279,11 +313,13 @@ class GammaM1Simulation:
                     self.server_states.state_server = True
                     self.t_departure = self.clock + self.gen_service_time(
                         self.input_params.mean_service_rate)
+                    self.phase_counter = 1
                     self.t_arrival = self.clock + self.gen_int_arr(
                         self.input_params.alpha, self.input_params.theta)
-                else: 
+                else:
                     self.curr_num_in_queue_system += evidence_val
                     self.curr_num_in_queue += evidence_val - 1
+                    self.phase_counter = 1
                     self.t_arrival = self.clock + self.gen_int_arr(
                         self.input_params.alpha, self.input_params.theta)
             elif evidence_type == 'subtractive':
@@ -295,17 +331,20 @@ class GammaM1Simulation:
                     self.curr_num_in_queue_system = 0
                     self.server_states.state_server = False
                     self.t_departure = float('inf')
+                    self.phase_counter = 1
                     self.t_arrival = self.clock + self.gen_int_arr(
                         self.input_params.alpha, self.input_params.theta)
-                elif self.curr_num_in_queue_system - evidence_val == 1:  
+                elif self.curr_num_in_queue_system - evidence_val == 1:
                     self.curr_num_in_queue = 0
                     self.curr_num_in_queue_system = 1
                     self.server_states.state_server = True
+                    self.phase_counter = 1
                     self.t_arrival = self.clock + self.gen_int_arr(
                         self.input_params.alpha, self.input_params.theta)
                 else:  # Remove the specified number of jobs from the system
                     self.curr_num_in_queue -= evidence_val - 1
                     self.curr_num_in_queue_system -= evidence_val
+                    self.phase_counter = 1
                     self.t_arrival = self.clock + self.gen_int_arr(
                         self.input_params.alpha, self.input_params.theta)
         self.log_query("Mod Intervention")
@@ -404,5 +443,5 @@ if __name__ == "__main__":
     if not os.path.exists(gt_folder):
         os.makedirs(gt_folder)
 
-    TIMESERIES_FILEPATH = f"{gt_folder}/gt-exp-{experiment_number}-gamma.csv"
+    TIMESERIES_FILEPATH = f"{gt_folder}/gt-exp-{experiment_number}-hypoexp.csv"
     df.to_csv(TIMESERIES_FILEPATH, index=False)  # Write results to csv

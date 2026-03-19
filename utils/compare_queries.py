@@ -82,13 +82,23 @@ if __name__ == "__main__":
 
     # Get ground truth probability distribution
     query_workload_name = f"{config_file.split('/')[-1].split('.')[0]}"
-    #with open(f"data/queries_gt/{query_workload_name}/gt-exp-{experiment_number}.pkl", 'rb') as f:
-    with open(f"data/queries_gt/{query_details['expt_name']}/gt-exp-{experiment_number}.pkl", 'rb') as f:
-        gt_dict = pickle.load(f)
-    gt = gt_dict['query_dist']
-    ci = gt_dict['half_width']
-    logger.info(f'Ground truth probability distribution: {gt}')
-    logger.info(f'Confidence interval: {ci}')
+
+    # ---- Load Gamma GT ----
+    with open(f"data/queries_gt/{query_details['expt_name']}/gt-exp-{experiment_number}-gamma.pkl", 'rb') as f:
+        gt_gamma_dict = pickle.load(f)
+
+    gt_gamma = gt_gamma_dict['query_dist']
+    ci_gamma = gt_gamma_dict['half_width']
+
+    # ---- Load HypoExp GT ----
+    with open(f"data/queries_gt/{query_details['expt_name']}/gt-exp-{experiment_number}-hypoexp.pkl", 'rb') as f:
+        gt_hypo_dict = pickle.load(f)
+
+    gt_hypo = gt_hypo_dict['query_dist']
+    ci_hypo = gt_hypo_dict['half_width']
+
+    logger.info(f'Gamma GT distribution: {gt_gamma}')
+    logger.info(f'HypoExp GT distribution: {gt_hypo}')
  
     results_folder = f"{query_details['results_folder']}/{query_workload_name}"
     dbn_output_filename = f"{results_folder}/posterior-exp-{experiment_number}.pkl"
@@ -105,9 +115,24 @@ if __name__ == "__main__":
     logger.info(f'Number of slices: {num_slices}')
 
     # Compare the ground truth and inferred probability distributions using JS distance
-    jsd_value = distance.jensenshannon(list(gt.values()),
-                                       list(inferred_pd.values()))
-    logger.info(f'Jensen-Shannon distance: {jsd_value}')
+    jsd_dbn_gamma = distance.jensenshannon(
+    list(gt_gamma.values()),
+    list(inferred_pd.values())
+    )
+
+    jsd_dbn_hypo = distance.jensenshannon(
+        list(gt_hypo.values()),
+        list(inferred_pd.values())
+    )
+
+    jsd_gamma_hypo = distance.jensenshannon(
+        list(gt_gamma.values()),
+        list(gt_hypo.values())
+    )
+
+    logger.info(f'JSD(DBN , Gamma) = {jsd_dbn_gamma}')
+    logger.info(f'JSD(DBN , HypoExp) = {jsd_dbn_hypo}')
+    logger.info(f'JSD(Gamma , HypoExp) = {jsd_gamma_hypo}')
 
     # Plot the ground truth and inferred probability distributions
 
@@ -117,60 +142,63 @@ if __name__ == "__main__":
                                 max_iql=max_iql)
     logger.info(f'Plot title: {plot_title}')
     # Put scatter points on the plot
-    plt.scatter(list(gt.keys()), list(gt.values()), s=10, color='r', alpha=0.5)
-    plt.scatter(list(inferred_pd.keys()),
-                list(inferred_pd.values()),
-                s=10,
-                color='b',
-                alpha=0.5)
+    plt.scatter(list(gt_gamma.keys()), list(gt_gamma.values()),
+            s=10, color='r', alpha=0.5)
+
+    plt.scatter(list(gt_hypo.keys()), list(gt_hypo.values()),
+                s=10, color='g', alpha=0.5)
+
+    plt.scatter(list(inferred_pd.keys()), list(inferred_pd.values()),
+                s=10, color='b', alpha=0.5)
 
     # Create a shaded area for the confidence interval
-    y1 = list(map(np.subtract, list(gt.values()), list(ci.values())))
-    y2 = list(map(np.add, list(gt.values()), list(ci.values())))
-    plt.fill_between(list(gt.keys()), y1, y2, color='pink', alpha=0.5)
+    y1 = list(map(np.subtract, list(gt_gamma.values()), list(ci_gamma.values())))
+    y2 = list(map(np.add, list(gt_gamma.values()), list(ci_gamma.values())))
+    plt.fill_between(list(gt_gamma.keys()), y1, y2, color='pink', alpha=0.5)
 
     # Add error bars to the plot
-    # plt.errorbar(list(gt.keys()),
-    #              list(gt.values()),
-    #              yerr=list(ci.values()),
-    #              fmt='o',
-    #              label='Ground truth CI',
-    #              color='r', alpha=0.5, capsize=5,
-    #              markersize=3)  # Change the markersize to adjust the size of the scatter points
-    # Add plot lines
-    plt.plot(list(gt.keys()),
-             list(gt.values()),
-             label='Ground truth',
-             color='r',
-             alpha=0.5,
-             markersize=5)
+    plt.plot(list(gt_gamma.keys()),
+         list(gt_gamma.values()),
+         label='Gamma GT',
+         color='r',
+         alpha=0.7)
+
+    plt.plot(list(gt_hypo.keys()),
+            list(gt_hypo.values()),
+            label='HypoExp GT',
+            color='g',
+            alpha=0.7)
+
     plt.plot(list(inferred_pd.keys()),
-             list(inferred_pd.values()),
-             label='Inferred',
-             color='b',
-             alpha=0.5,
-             markersize=5)
+            list(inferred_pd.values()),
+            label='DBN',
+            color='b',
+            alpha=0.7)
 
     plt.legend()
     plt.xlabel('State')
     plt.ylabel('Probability')
     # Print the JSD in the title rounded to 3 decimal places
-    plt.title(f'{plot_title}\nJSD = {jsd_value:.3f}')
+    plt.title(
+        f'{plot_title}\n'
+        f'JSD(DBN,Gamma)={jsd_dbn_gamma:.3f}  '
+        f'JSD(DBN,Hypo)={jsd_dbn_hypo:.3f}  '
+        f'JSD(Gamma,Hypo)={jsd_gamma_hypo:.3f}'
+    )
     
     # Create the figures folder if it does not exist
-    #query_workload_filename = f'{config_file.split('/')[-1].split('.')[0]}'
     query_workload_filename = f"{config_file.split('/')[-1].split('.')[0]}"
     figures_folder = f"{query_details['figures_folder']}/{query_workload_filename}"
     if not os.path.exists(figures_folder):
         os.makedirs(figures_folder)
-    plt.savefig(f'{figures_folder}/fig-exp-{experiment_number}.png',
+    plt.savefig(f'{figures_folder}/3dist-fig-exp-{experiment_number}.png',
                 bbox_inches='tight',
                 dpi=100)
 
     # Create a plot of the empirical CDF and the Clopper-Pearson confidence interval
     plt.figure(figsize=(10, 6))
-    ecdf = gt_dict['empirical_cdf']
-    pointwise_bounds = gt_dict['cdf_pointwise_bounds']
+    ecdf = gt_gamma_dict['empirical_cdf']
+    pointwise_bounds = gt_gamma_dict['cdf_pointwise_bounds']
     # If any of the values in the pointwise bounds tuple are nan, set them to 0
     pointwise_bounds = {k: (0 if np.isnan(v[0]) else v[0], 0 if np.isnan(v[1]) else v[1])
                         for k, v in pointwise_bounds.items()}
@@ -204,7 +232,7 @@ if __name__ == "__main__":
     plt.xlabel('State')
     plt.ylabel('Empirical CDF')
     plt.title(f'{plot_title}\nEmpirical CDF with Clopper-Pearson CI \n JSD = {jsd_cdf:.3f}')
-    plt.savefig(f'{figures_folder}/cdf-fig-exp-{experiment_number}.png',
+    plt.savefig(f'{figures_folder}/3dist-cdf-fig-exp-{experiment_number}.png',
                 bbox_inches='tight',
                 dpi=100)
 

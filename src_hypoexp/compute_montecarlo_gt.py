@@ -19,7 +19,7 @@ import yaml
 logger = logging.getLogger('compute_montecarlo_gt')
 
 
-def compute_gt_pd(query, exp_num, gt_folder=None):
+def compute_gt_pd(query, exp_num, gt_folder=None, suffix=""):
     """Compute the ground truth probability distribution.
 
     Args:
@@ -33,7 +33,7 @@ def compute_gt_pd(query, exp_num, gt_folder=None):
 
     # Extract the query details
     query_variable = 'QueueLength'
-    gt_filepath = f"{gt_folder}/gt-exp-{exp_num}.csv"
+    gt_filepath = f"{gt_folder}/gt-exp-{exp_num}{suffix}.csv"
     df = pd.read_csv(gt_filepath)
 
     # Use the query to determine how many conditional events there should exist and if they
@@ -166,15 +166,18 @@ if __name__ == '__main__':
     gt_folder = f"{query_details['gt_results_folder']}/{query_details['expt_name']}"
 
     # Compute the ground truth probability distribution
-    gt_dict = compute_gt_pd(
-        query_details,
-        experiment_number,
-        gt_folder=gt_folder)
+    for suffix in ["-gamma", "-hypoexp"]:
 
-    # Save the ground truth probability distribution
-    # If the folder doesn't exist, create it
-    if not os.path.exists(gt_folder):
-        os.makedirs(gt_folder)
-    gt_pd_filepath = (f"{gt_folder}/gt-exp-{experiment_number}.pkl")
-    with open(gt_pd_filepath, 'wb') as f:
-        pickle.dump(gt_dict, f)
+        logger.info(f"Processing GT file with suffix {suffix}")
+
+        gt_dict = compute_gt_pd(
+            query_details,
+            experiment_number,
+            gt_folder=gt_folder,
+            suffix=suffix
+        )
+
+        gt_pd_filepath = f"{gt_folder}/gt-exp-{experiment_number}{suffix}.pkl"
+
+        with open(gt_pd_filepath, 'wb') as f:
+            pickle.dump(gt_dict, f)

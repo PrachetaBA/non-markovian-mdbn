@@ -186,7 +186,8 @@ def compute_jsd_detailed(config_file, gt_nreps=30):
 
     jsd_analysis = pd.DataFrame(columns=[
         'exp_num', 'expt_name', 'intv_type', 'intv_var', 'intv_time',
-        'intv_val', 'query_var', 'query_time', 'queue_setting', 'jsd',
+        'intv_val', 'query_var', 'query_time', 'queue_setting',
+        'jsd_dbn_gamma','jsd_dbn_hypo','jsd_gamma_hypo',
         'num_conditional_events', 'inference_time', 'inference_compute_time'
     ])
 
@@ -200,34 +201,46 @@ def compute_jsd_detailed(config_file, gt_nreps=30):
         exp_num = int(experiment.split('_')[-1])
         logger.info(f'Experiment {exp_num}')
 
-        # possible ground truth locations (prefer gt_results_folder/expt_name/gt-exp-{exp_num}.pkl)
-        primary_gt_path = os.path.join(query_details['gt_results_folder'], query_details['expt_name'], f'gt-exp-{exp_num}.pkl')
-        pooled_gt_path = os.path.join(query_details['gt_results_folder'], f'queries_nreps-{gt_nreps}_pooled', f'gt-exp-{exp_num}.pkl')
+        # --- Ground truth paths for gamma and hypo ---
+        primary_gt_gamma_path = os.path.join(query_details['gt_results_folder'], query_details['expt_name'], f'gt-exp-{exp_num}-gamma.pkl')
+        pooled_gt_gamma_path = os.path.join(query_details['gt_results_folder'], f'queries_nreps-{gt_nreps}_pooled', f'gt-exp-{exp_num}-gamma.pkl')
 
-        # Try to load GT from the primary location, then fallback to pooled naming
-        gt_dict = None
-        if os.path.exists(primary_gt_path):
-            gt_path_used = primary_gt_path
-        elif os.path.exists(pooled_gt_path):
-            gt_path_used = pooled_gt_path
+        primary_gt_hypo_path = os.path.join(query_details['gt_results_folder'], query_details['expt_name'], f'gt-exp-{exp_num}-hypoexp.pkl')
+        pooled_gt_hypo_path = os.path.join(query_details['gt_results_folder'], f'queries_nreps-{gt_nreps}_pooled', f'gt-exp-{exp_num}-hypoexp.pkl')
+
+        if os.path.exists(primary_gt_gamma_path):
+            gamma_gt_used = primary_gt_gamma_path
+        elif os.path.exists(pooled_gt_gamma_path):
+            gamma_gt_used = pooled_gt_gamma_path
         else:
-            logger.warning(f'Experiment {exp_num} has no ground truth file at {primary_gt_path} or {pooled_gt_path}. Skipping...')
-            skipped_counters['missing_gt'] += 1
+            logger.warning(f'Experiment {exp_num} missing gamma GT. Skipping...')
+            skipped_counters['missing_gamma_gt'] += 1
+            continue
+
+        if os.path.exists(primary_gt_hypo_path):
+            hypo_gt_used = primary_gt_hypo_path
+        elif os.path.exists(pooled_gt_hypo_path):
+            hypo_gt_used = pooled_gt_hypo_path
+        else:
+            logger.warning(f'Experiment {exp_num} missing hypo GT. Skipping...')
+            skipped_counters['missing_hypo_gt'] += 1
             continue
 
         try:
-            with open(gt_path_used, 'rb') as f:
-                gt_dict = pickle.load(f)
-            logger.debug(f'Ground truth probability distribution: {gt_dict.get("query_dist", None)}')
+            with open(gamma_gt_used, 'rb') as f:
+                gamma_gt_dict = pickle.load(f)
+            with open(hypo_gt_used, 'rb') as f:
+                hypo_gt_dict = pickle.load(f)
+            logger.debug(f'Ground truth loaded for experiment {exp_num}')
         except Exception as e:
-            logger.warning(f'Could not load GT for experiment {exp_num} from {gt_path_used}: {e}. Skipping...')
+            logger.warning(f'Could not load GT for experiment {exp_num}: {e}. Skipping...')
             skipped_counters['bad_gt'] += 1
             continue
 
         # For small exp numbers, try to compute number of conditional events from CSV if available
         if exp_num <= 50:
             try:
-                gt_csv = pd.read_csv(os.path.join(os.path.dirname(gt_path_used), f'gt-exp-{exp_num}.csv'))
+                gt_csv = pd.read_csv(os.path.join(os.path.dirname(gamma_gt_used), f'gt-exp-{exp_num}.csv'))
                 num_cond_events = len(gt_csv[gt_csv['Event'] == 'Conditional'])
             except FileNotFoundError:
                 num_cond_events = None
@@ -236,7 +249,6 @@ def compute_jsd_detailed(config_file, gt_nreps=30):
             num_cond_events = None
 
         # Compose posterior filename path:
-        # results_folder / workload_name / posterior-exp-{exp_num}.pkl
         results_folder_for_query = query_details['results_folder']
         posterior_path = os.path.join(results_folder_for_query, workload_name, f'posterior-exp-{exp_num}.pkl')
 
@@ -248,54 +260,57 @@ def compute_jsd_detailed(config_file, gt_nreps=30):
         # Load posterior
         try:
             inferred_data = pd.read_pickle(posterior_path)
-            # expected structure based on compare_queries.py
             inferred_pd = inferred_data.get('Posterior') if isinstance(inferred_data, dict) else inferred_data
             inference_time = inferred_data.get('InferenceTime') if isinstance(inferred_data, dict) else None
             inference_compute_time = inferred_data.get('FullInferenceTime') if isinstance(inferred_data, dict) else None
         except Exception as e:
-            logger.warning(f'Could not load posterior for experiment {exp_num} from {posterior_path}: {e}. Skipping...')
+            logger.warning(f'Could not load posterior for experiment {exp_num}: {e}. Skipping...')
             skipped_counters['bad_posterior'] += 1
             continue
 
         # Validate GT and posterior dictionaries
-        gt = gt_dict.get('query_dist') if isinstance(gt_dict, dict) else None
-        if gt is None:
-            logger.warning(f'Experiment {exp_num} GT does not contain "query_dist". Skipping...')
+        gt_gamma = gamma_gt_dict.get('query_dist') if isinstance(gamma_gt_dict, dict) else None
+        gt_hypo  = hypo_gt_dict.get('query_dist') if isinstance(hypo_gt_dict, dict) else None
+
+        if gt_gamma is None or gt_hypo is None:
+            logger.warning(f'Experiment {exp_num} GT missing "query_dist". Skipping...')
             skipped_counters['bad_gt_format'] += 1
             continue
 
         # If GT sums to zero, skip but count it
-        if sum(gt.values()) == 0:
+        if sum(gt_gamma.values()) == 0 or sum(gt_hypo.values()) == 0:
             logger.warning(f'Experiment {exp_num} has zero probability in ground truth! Skipping...')
             skipped_counters['zero_gt'] += 1
             continue
 
-        # Ensure inferred_pd has same support ordering as gt: create lists aligned by state keys
+        # Align inferred and GT distributions
         try:
-            # If inferred_pd is a pandas Series or dict-like:
             if isinstance(inferred_pd, pd.Series):
                 inferred_series = inferred_pd
             else:
                 inferred_series = pd.Series(inferred_pd)
 
-            # Align keys by sorted integer state (fallback to list order if keys are not numeric)
-            try:
-                states = sorted(map(int, gt.keys()))
-            except Exception:
-                states = list(gt.keys())
+            states = sorted(set(list(gt_gamma.keys()) + list(gt_hypo.keys()) + list(inferred_series.index)))
 
-            posterior_probs = [float(inferred_series.get(s, 0.0)) for s in states]
-            gt_probs = [float(gt.get(s, 0.0)) for s in states]
+            posterior_probs = np.array([float(inferred_series.get(s,0.0)) for s in states])
+            gamma_probs    = np.array([float(gt_gamma.get(s,0.0)) for s in states])
+            hypo_probs     = np.array([float(gt_hypo.get(s,0.0)) for s in states])
+
+            posterior_probs /= posterior_probs.sum()
+            gamma_probs /= gamma_probs.sum()
+            hypo_probs /= hypo_probs.sum()
         except Exception as e:
             logger.warning(f'Error aligning distributions for experiment {exp_num}: {e}. Skipping...')
             skipped_counters['alignment_error'] += 1
             continue
 
-        # Compute JSD and handle NaN
-        jsd = None
+        # Compute 3 JSDs
         try:
-            jsd = distance.jensenshannon(gt_probs, posterior_probs)
-            if np.isnan(jsd):
+            jsd_dbn_gamma = distance.jensenshannon(gamma_probs, posterior_probs)
+            jsd_dbn_hypo  = distance.jensenshannon(hypo_probs, posterior_probs)
+            jsd_gamma_hypo = distance.jensenshannon(gamma_probs, hypo_probs)
+
+            if np.isnan(jsd_dbn_gamma) or np.isnan(jsd_dbn_hypo) or np.isnan(jsd_gamma_hypo):
                 logger.warning(f'Experiment {exp_num} JSD is NaN. Skipping...')
                 skipped_counters['nan_jsd'] += 1
                 continue
@@ -317,13 +332,14 @@ def compute_jsd_detailed(config_file, gt_nreps=30):
             intv_time = None
             intv_val = None
 
-        # Populate the DataFrame (same columns as before)
+        # Populate the DataFrame
         jsd_analysis.loc[len(jsd_analysis)] = [
             exp_num, query_details.get('expt_name'),
             intv_type, intv_var, intv_time,
             intv_val, query_details.get('query_variable'), query_details.get('query_time'),
             query_details.get('expt_name').split('_')[-1] if query_details.get('expt_name') else None,
-            jsd, num_cond_events, inference_time, inference_compute_time
+            jsd_dbn_gamma, jsd_dbn_hypo, jsd_gamma_hypo,
+            num_cond_events, inference_time, inference_compute_time
         ]
 
     # Merge additive and subtractive interventions
@@ -335,13 +351,15 @@ def compute_jsd_detailed(config_file, gt_nreps=30):
     # Summary stats
     summary = {}
     for intv_type in jsd_analysis['intv_type'].unique():
-        vals = jsd_analysis[jsd_analysis['intv_type'] == intv_type]['jsd'].dropna()
-        summary[intv_type] = {
-            'count': int(vals.shape[0]),
-            'mean': float(vals.mean()) if not vals.empty else None,
-            'median': float(vals.median()) if not vals.empty else None,
-            'std': float(vals.std()) if not vals.empty else None,
-        }
+        summary[intv_type] = {}
+        for metric in ['jsd_dbn_gamma','jsd_dbn_hypo','jsd_gamma_hypo']:
+            vals = jsd_analysis[jsd_analysis['intv_type'] == intv_type][metric].dropna()
+            summary[intv_type][metric] = {
+                'count': int(vals.shape[0]),
+                'mean': float(vals.mean()) if not vals.empty else None,
+                'median': float(vals.median()) if not vals.empty else None,
+                'std': float(vals.std()) if not vals.empty else None,
+            }
 
     logger.info(f'JSD summary by intervention type: {summary}')
     logger.info(f'Skipped counts: {dict(skipped_counters)}')
@@ -350,11 +368,13 @@ def compute_jsd_detailed(config_file, gt_nreps=30):
     # Compute the average JSD for each type of intervention (as before)
     avg_jsds = {}
     for intv_type in jsd_analysis['intv_type'].unique():
-        avg_jsds[intv_type] = jsd_analysis[jsd_analysis['intv_type'] == intv_type]['jsd'].mean()
+        avg_jsds[intv_type] = {}
+        for metric in ['jsd_dbn_gamma','jsd_dbn_hypo','jsd_gamma_hypo']:
+            avg_jsds[intv_type][metric] = jsd_analysis[jsd_analysis['intv_type'] == intv_type][metric].mean()
 
     print(avg_jsds)
 
-    # Save the DataFrame to a CSV file (same naming convention as before)
+    # Save the DataFrame to a CSV file
     results_csv_dir = 'results'
     os.makedirs(results_csv_dir, exist_ok=True)
     csv_fname = f"{results_csv_dir}/{workload_name}_results.csv"
@@ -365,35 +385,35 @@ def compute_jsd_detailed(config_file, gt_nreps=30):
 
     # ---- Produce a box plot of JSD grouped by intervention type ----
     if not jsd_analysis.empty:
-        plt.figure(figsize=(8, 6))
-        # Prepare data for boxplot in a consistent order
-        intv_types = sorted(jsd_analysis['intv_type'].unique())
-        data_to_plot = [jsd_analysis[jsd_analysis['intv_type'] == t]['jsd'].dropna().values for t in intv_types]
+        for metric in ['jsd_dbn_gamma','jsd_dbn_hypo','jsd_gamma_hypo']:
 
-        # Create the boxplot
-        plt.boxplot(data_to_plot, labels=intv_types, showfliers=True)
-        plt.xlabel('Intervention Type')
-        plt.ylabel('Jensen-Shannon Distance (PMF)')
-        plt.title(f'JSD distribution by intervention type ({workload_name})')
-        plt.grid(axis='y', linestyle='--', alpha=0.4)
+            plt.figure(figsize=(8,6))
+            intv_types = sorted(jsd_analysis['intv_type'].unique())
 
-        # Save plot to results folder
-        boxplot_fname = os.path.join(results_csv_dir, f"{workload_name}_jsd_boxplot.png")
-        plt.savefig(boxplot_fname, bbox_inches='tight', dpi=150)
-        logger.info(f'Saved JSD boxplot to {boxplot_fname}')
+            data_to_plot = [
+                jsd_analysis[jsd_analysis['intv_type'] == t][metric].dropna().values
+                for t in intv_types
+            ]
 
-        # Also try to save to the figures folder of the first query if available
-        try:
-            first_query = next(iter(config.values()))
-            figures_folder = first_query.get('figures_folder')
-            if figures_folder:
-                os.makedirs(figures_folder, exist_ok=True)
-                fig_save_path = os.path.join(figures_folder, workload_name + '_jsd_boxplot.png')
-                plt.savefig(fig_save_path, bbox_inches='tight', dpi=150)
-                logger.info(f'Saved JSD boxplot to {fig_save_path}')
-        except Exception:
-            pass
+            plt.boxplot(data_to_plot, labels=intv_types, showfliers=True)
+            plt.xlabel('Intervention Type')
+            plt.ylabel('Jensen-Shannon Distance (PMF)')
+            plt.title(f'{metric} ({workload_name})')
+            plt.grid(axis='y', linestyle='--', alpha=0.4)
 
+            boxplot_fname = os.path.join(results_csv_dir, f"{workload_name}_{metric}_boxplot.png")
+            plt.savefig(boxplot_fname, bbox_inches='tight', dpi=150)
+
+            # Also try to save to the figures folder of the first query if available
+            try:
+                first_query = next(iter(config.values()))
+                figures_folder = first_query.get('figures_folder')
+                if figures_folder:
+                    os.makedirs(figures_folder, exist_ok=True)
+                    fig_save_path = os.path.join(figures_folder, f"{workload_name}_{metric}_boxplot.png")
+                    plt.savefig(fig_save_path, bbox_inches='tight', dpi=150)
+            except Exception:
+                pass
     else:
         logger.warning('No valid JSDs to plot; boxplot skipped.')
 
