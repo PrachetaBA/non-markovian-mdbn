@@ -1352,14 +1352,19 @@ def generate_gamma_csv(config_file):
         query_type
         mean_mdbn
         var_mdbn
+        iqr_mdbn
         mean_gt
         var_gt
+        iqr_gt
         mean_hypo
         var_hypo
+        iqr_hypo
         diff_mean_mdbn_gt
         diff_var_mdbn_gt
+        diff_iqr_mdbn_gt
         diff_mean_mdbn_hypo
         diff_var_mdbn_hypo
+        diff_iqr_mdbn_hypo
     """
     eps = 1e-12
     logger = logging.getLogger('gamma_csv')
@@ -1373,14 +1378,22 @@ def generate_gamma_csv(config_file):
     
     workload_name = os.path.basename(config_file).split('.')[0]
     
+    # Weighted quantile function
+    def weighted_quantile(values, probs, quantile):
+        sorter = np.argsort(values)
+        values_sorted = values[sorter]
+        probs_sorted = probs[sorter]
+        cdf = np.cumsum(probs_sorted)
+        return np.interp(quantile, cdf, values_sorted)
+    
     # Prepare results dataframe
     columns = [
         'exp_num', 'query_type',
-        'mean_mdbn', 'var_mdbn',
-        'mean_gt', 'var_gt',
-        'mean_hypo', 'var_hypo',
-        'diff_mean_mdbn_gt', 'diff_var_mdbn_gt',
-        'diff_mean_mdbn_hypo', 'diff_var_mdbn_hypo'
+        'mean_mdbn', 'var_mdbn', 'iqr_mdbn',
+        'mean_gt', 'var_gt', 'iqr_gt',
+        'mean_hypo', 'var_hypo', 'iqr_hypo',
+        'diff_mean_mdbn_gt', 'diff_var_mdbn_gt', 'diff_iqr_mdbn_gt',
+        'diff_mean_mdbn_hypo', 'diff_var_mdbn_hypo', 'diff_iqr_mdbn_hypo'
     ]
     results_df = pd.DataFrame(columns=columns)
     
@@ -1463,27 +1476,35 @@ def generate_gamma_csv(config_file):
             # ---------- Compute moments ----------
             mean_mdbn = float(np.sum(states_arr * posterior_probs))
             var_mdbn = float(np.sum((states_arr - mean_mdbn)**2 * posterior_probs))
+            q1, q3 = weighted_quantile(states_arr, posterior_probs, 0.25), weighted_quantile(states_arr, posterior_probs, 0.75)
+            iqr_mdbn = float(q3 - q1)
             
             mean_gt = float(np.sum(states_arr * gamma_probs))
             var_gt = float(np.sum((states_arr - mean_gt)**2 * gamma_probs))
+            q1, q3 = weighted_quantile(states_arr, gamma_probs, 0.25), weighted_quantile(states_arr, gamma_probs, 0.75)
+            iqr_gt = float(q3 - q1)
             
             mean_hypo = float(np.sum(states_arr * hypo_probs))
             var_hypo = float(np.sum((states_arr - mean_hypo)**2 * hypo_probs))
+            q1, q3 = weighted_quantile(states_arr, hypo_probs, 0.25), weighted_quantile(states_arr, hypo_probs, 0.75)
+            iqr_hypo = float(q3 - q1)
             
             # ---------- Differences ----------
             diff_mean_mdbn_gt = mean_mdbn - mean_gt
             diff_var_mdbn_gt = var_mdbn - var_gt
+            diff_iqr_mdbn_gt = iqr_mdbn - iqr_gt
             diff_mean_mdbn_hypo = mean_mdbn - mean_hypo
             diff_var_mdbn_hypo = var_mdbn - var_hypo
+            diff_iqr_mdbn_hypo = iqr_mdbn - iqr_hypo
             
             # ---------- Save row ----------
             results_df.loc[len(results_df)] = [
                 exp_num, query_type,
-                mean_mdbn, var_mdbn,
-                mean_gt, var_gt,
-                mean_hypo, var_hypo,
-                diff_mean_mdbn_gt, diff_var_mdbn_gt,
-                diff_mean_mdbn_hypo, diff_var_mdbn_hypo
+                mean_mdbn, var_mdbn, iqr_mdbn,
+                mean_gt, var_gt, iqr_gt,
+                mean_hypo, var_hypo, iqr_hypo,
+                diff_mean_mdbn_gt, diff_var_mdbn_gt, diff_iqr_mdbn_gt,
+                diff_mean_mdbn_hypo, diff_var_mdbn_hypo, diff_iqr_mdbn_hypo
             ]
     
     # ---------- Save CSV ----------
@@ -1507,14 +1528,19 @@ def generate_weibull_csv(config_file):
         query_type
         mean_mdbn
         var_mdbn
+        iqr_mdbn
         mean_gt
         var_gt
+        iqr_gt
         mean_hypo
         var_hypo
+        iqr_hypo
         diff_mean_mdbn_gt
         diff_var_mdbn_gt
+        diff_iqr_mdbn_gt
         diff_mean_mdbn_hypo
         diff_var_mdbn_hypo
+        diff_iqr_mdbn_hypo
     """
     eps = 1e-12
     logger = logging.getLogger('weibull_csv')
@@ -1528,14 +1554,22 @@ def generate_weibull_csv(config_file):
     
     workload_name = os.path.basename(config_file).split('.')[0]
     
+    # Weighted quantile function
+    def weighted_quantile(values, probs, quantile):
+        sorter = np.argsort(values)
+        values_sorted = values[sorter]
+        probs_sorted = probs[sorter]
+        cdf = np.cumsum(probs_sorted)
+        return np.interp(quantile, cdf, values_sorted)
+    
     # Prepare results dataframe
     columns = [
         'exp_num', 'query_type',
-        'mean_mdbn', 'var_mdbn',
-        'mean_gt', 'var_gt',
-        'mean_hypo', 'var_hypo',
-        'diff_mean_mdbn_gt', 'diff_var_mdbn_gt',
-        'diff_mean_mdbn_hypo', 'diff_var_mdbn_hypo'
+        'mean_mdbn', 'var_mdbn', 'iqr_mdbn',
+        'mean_gt', 'var_gt', 'iqr_gt',
+        'mean_hypo', 'var_hypo', 'iqr_hypo',
+        'diff_mean_mdbn_gt', 'diff_var_mdbn_gt', 'diff_iqr_mdbn_gt',
+        'diff_mean_mdbn_hypo', 'diff_var_mdbn_hypo', 'diff_iqr_mdbn_hypo'
     ]
     results_df = pd.DataFrame(columns=columns)
     
@@ -1618,27 +1652,35 @@ def generate_weibull_csv(config_file):
             # ---------- Compute moments ----------
             mean_mdbn = float(np.sum(states_arr * posterior_probs))
             var_mdbn = float(np.sum((states_arr - mean_mdbn)**2 * posterior_probs))
+            q1, q3 = weighted_quantile(states_arr, posterior_probs, 0.25), weighted_quantile(states_arr, posterior_probs, 0.75)
+            iqr_mdbn = float(q3 - q1)
             
             mean_gt = float(np.sum(states_arr * weibull_probs))
             var_gt = float(np.sum((states_arr - mean_gt)**2 * weibull_probs))
+            q1, q3 = weighted_quantile(states_arr, weibull_probs, 0.25), weighted_quantile(states_arr, weibull_probs, 0.75)
+            iqr_gt = float(q3 - q1)
             
             mean_hypo = float(np.sum(states_arr * hypo_probs))
             var_hypo = float(np.sum((states_arr - mean_hypo)**2 * hypo_probs))
+            q1, q3 = weighted_quantile(states_arr, hypo_probs, 0.25), weighted_quantile(states_arr, hypo_probs, 0.75)
+            iqr_hypo = float(q3 - q1)
             
             # ---------- Differences ----------
             diff_mean_mdbn_gt = mean_mdbn - mean_gt
             diff_var_mdbn_gt = var_mdbn - var_gt
+            diff_iqr_mdbn_gt = iqr_mdbn - iqr_gt
             diff_mean_mdbn_hypo = mean_mdbn - mean_hypo
             diff_var_mdbn_hypo = var_mdbn - var_hypo
+            diff_iqr_mdbn_hypo = iqr_mdbn - iqr_hypo
             
             # ---------- Save row ----------
             results_df.loc[len(results_df)] = [
                 exp_num, query_type,
-                mean_mdbn, var_mdbn,
-                mean_gt, var_gt,
-                mean_hypo, var_hypo,
-                diff_mean_mdbn_gt, diff_var_mdbn_gt,
-                diff_mean_mdbn_hypo, diff_var_mdbn_hypo
+                mean_mdbn, var_mdbn, iqr_mdbn,
+                mean_gt, var_gt, iqr_gt,
+                mean_hypo, var_hypo, iqr_hypo,
+                diff_mean_mdbn_gt, diff_var_mdbn_gt, diff_iqr_mdbn_gt,
+                diff_mean_mdbn_hypo, diff_var_mdbn_hypo, diff_iqr_mdbn_hypo
             ]
     
     # ---------- Save CSV ----------
@@ -1662,14 +1704,19 @@ def generate_beta_csv(config_file):
         query_type
         mean_mdbn
         var_mdbn
+        iqr_mdbn
         mean_gt
         var_gt
+        iqr_gt
         mean_hypo
         var_hypo
+        iqr_hypo
         diff_mean_mdbn_gt
         diff_var_mdbn_gt
+        diff_iqr_mdbn_gt
         diff_mean_mdbn_hypo
         diff_var_mdbn_hypo
+        diff_iqr_mdbn_hypo
     """
     eps = 1e-12
     logger = logging.getLogger('beta_csv')
@@ -1683,14 +1730,22 @@ def generate_beta_csv(config_file):
     
     workload_name = os.path.basename(config_file).split('.')[0]
     
+    # Weighted quantile function
+    def weighted_quantile(values, probs, quantile):
+        sorter = np.argsort(values)
+        values_sorted = values[sorter]
+        probs_sorted = probs[sorter]
+        cdf = np.cumsum(probs_sorted)
+        return np.interp(quantile, cdf, values_sorted)
+    
     # Prepare results dataframe
     columns = [
         'exp_num', 'query_type',
-        'mean_mdbn', 'var_mdbn',
-        'mean_gt', 'var_gt',
-        'mean_hypo', 'var_hypo',
-        'diff_mean_mdbn_gt', 'diff_var_mdbn_gt',
-        'diff_mean_mdbn_hypo', 'diff_var_mdbn_hypo'
+        'mean_mdbn', 'var_mdbn', 'iqr_mdbn',
+        'mean_gt', 'var_gt', 'iqr_gt',
+        'mean_hypo', 'var_hypo', 'iqr_hypo',
+        'diff_mean_mdbn_gt', 'diff_var_mdbn_gt', 'diff_iqr_mdbn_gt',
+        'diff_mean_mdbn_hypo', 'diff_var_mdbn_hypo', 'diff_iqr_mdbn_hypo'
     ]
     results_df = pd.DataFrame(columns=columns)
     
@@ -1773,27 +1828,35 @@ def generate_beta_csv(config_file):
             # ---------- Compute moments ----------
             mean_mdbn = float(np.sum(states_arr * posterior_probs))
             var_mdbn = float(np.sum((states_arr - mean_mdbn)**2 * posterior_probs))
+            q1, q3 = weighted_quantile(states_arr, posterior_probs, 0.25), weighted_quantile(states_arr, posterior_probs, 0.75)
+            iqr_mdbn = float(q3 - q1)
             
             mean_gt = float(np.sum(states_arr * beta_probs))
             var_gt = float(np.sum((states_arr - mean_gt)**2 * beta_probs))
+            q1, q3 = weighted_quantile(states_arr, beta_probs, 0.25), weighted_quantile(states_arr, beta_probs, 0.75)
+            iqr_gt = float(q3 - q1)
             
             mean_hypo = float(np.sum(states_arr * hypo_probs))
             var_hypo = float(np.sum((states_arr - mean_hypo)**2 * hypo_probs))
+            q1, q3 = weighted_quantile(states_arr, hypo_probs, 0.25), weighted_quantile(states_arr, hypo_probs, 0.75)
+            iqr_hypo = float(q3 - q1)
             
             # ---------- Differences ----------
             diff_mean_mdbn_gt = mean_mdbn - mean_gt
             diff_var_mdbn_gt = var_mdbn - var_gt
+            diff_iqr_mdbn_gt = iqr_mdbn - iqr_gt
             diff_mean_mdbn_hypo = mean_mdbn - mean_hypo
             diff_var_mdbn_hypo = var_mdbn - var_hypo
+            diff_iqr_mdbn_hypo = iqr_mdbn - iqr_hypo
             
             # ---------- Save row ----------
             results_df.loc[len(results_df)] = [
                 exp_num, query_type,
-                mean_mdbn, var_mdbn,
-                mean_gt, var_gt,
-                mean_hypo, var_hypo,
-                diff_mean_mdbn_gt, diff_var_mdbn_gt,
-                diff_mean_mdbn_hypo, diff_var_mdbn_hypo
+                mean_mdbn, var_mdbn, iqr_mdbn,
+                mean_gt, var_gt, iqr_gt,
+                mean_hypo, var_hypo, iqr_hypo,
+                diff_mean_mdbn_gt, diff_var_mdbn_gt, diff_iqr_mdbn_gt,
+                diff_mean_mdbn_hypo, diff_var_mdbn_hypo, diff_iqr_mdbn_hypo
             ]
     
     # ---------- Save CSV ----------
@@ -1872,61 +1935,55 @@ def generate_density_scatter(csv_file):
         mask = np.isfinite(y_true) & np.isfinite(y_pred)
         y_true = y_true[mask]
         y_pred = y_pred[mask]
+
+        use_log = False  # add this line if you want log transform
+        if use_log:
+            y_true = np.log1p(y_true)
+            y_pred = np.log1p(y_pred)
+
         if len(y_true) < 2:
             return np.nan, np.nan, np.nan, np.nan
 
-        # R^2
-        try:
-            r2 = r2_score(y_true, y_pred)
-        except:
-            r2 = np.nan
-        # Pearson
-        try:
-            pearson = pearsonr(y_true, y_pred)[0] if np.std(y_true) > 0 and np.std(y_pred) > 0 else np.nan
-        except:
-            pearson = np.nan
-        # Spearman
-        try:
-            spearman = spearmanr(y_true, y_pred)[0] if len(np.unique(y_true)) > 1 and len(np.unique(y_pred)) > 1 else np.nan
-        except:
-            spearman = np.nan
-        # SMAPE
-        denom = (np.abs(y_true) + np.abs(y_pred)) / 2.0
-        smape_terms = np.where(denom == 0, 0.0, np.abs(y_true - y_pred) / denom)
-        smape = np.mean(smape_terms) * 100.0
-        return r2, pearson, spearman, smape
+        mae = np.mean(np.abs(y_true - y_pred))
+        return mae
 
-    def plot_stats_box(ax, r2, pearson, spearman, smape):
-        """Add stats text box on the plot."""
-        stats_text = (
-            f"R² = {r2:.3f}\n"
-            f"Pearson = {pearson:.3f}\n"
-            f"Spearman = {spearman:.3f}\n"
-            f"SMAPE = {smape:.2f}%"
-        )
+
+    def plot_stats_box(ax, mae):
+        stats_text = (rf"$\mathrm{{MAE}} = {mae:.3f}$")
         ax.text(
             0.05, 0.95, stats_text,
             transform=ax.transAxes,
             va="top", ha="left",
-            fontsize=11,
-            bbox=dict(facecolor="white", edgecolor="black", alpha=0.85)
+            fontsize=25,
+            bbox=dict(facecolor="white", edgecolor="black", alpha=0.9)
         )
 
     def add_y_eq_x(ax, x, y):
-        """Draw y=x reference line."""
         x = np.asarray(x, dtype=float)
         y = np.asarray(y, dtype=float)
         mask = np.isfinite(x) & np.isfinite(y)
         x = x[mask]
         y = y[mask]
+
         if len(x) == 0:
             return
+
         min_val = min(np.min(x), np.min(y))
         max_val = max(np.max(x), np.max(y))
         pad = 0.05 * (max_val - min_val) if max_val != min_val else 1
+
         min_val -= pad
         max_val += pad
-        ax.plot([min_val, max_val], [min_val, max_val], "r--", lw=1.8, label="y = x")
+
+        ax.plot(
+            [min_val, max_val],
+            [min_val, max_val],
+            linestyle="--",
+            linewidth=2,
+            color="red",
+            #label=r"$\hat{y} = y$"
+        )
+
         ax.set_xlim(min_val, max_val)
         ax.set_ylim(min_val, max_val)
 
@@ -1944,7 +2001,12 @@ def generate_density_scatter(csv_file):
     os.makedirs(density_dir, exist_ok=True)
     os.makedirs(scatter_dir, exist_ok=True)
 
-    sns.set_style("whitegrid")
+    sns.set_style("ticks")
+    plt.rcParams.update({
+        "font.size": 13,
+        "axes.labelsize": 14,
+        "axes.titlesize": 14,
+    })
     query_colors = {
         "Conditional": "#1f77b4",
         "Interventional": "#ff7f0e",
@@ -1956,15 +2018,24 @@ def generate_density_scatter(csv_file):
     # Density Plots
     # -----------------------------
     density_specs = [
-        ("diff_mean_mdbn_gt", "Mean difference (MDBN - General/GT)"),
-        ("diff_var_mdbn_gt", "Variance difference (MDBN - General/GT)"),
-        ("diff_mean_mdbn_hypo", "Mean difference (MDBN - HypoExp)"),
-        ("diff_var_mdbn_hypo", "Variance difference (MDBN - HypoExp)"),
+        ("diff_mean_mdbn_gt", r"$\mathbb{E}[\widehat{L_{\tau_j}}] - \mathbb{E}[L_{\tau_j}]$ (MDBN - GT)"),
+        ("diff_var_mdbn_gt", r"$\mathrm{Var}(\widehat{L_{\tau_j}}) - \mathrm{Var}(L_{\tau_j})$ (MDBN - GT)"),
+        ("diff_mean_mdbn_hypo", r"$\mathbb{E}[\widehat{L_{\tau_j}}] - \mathbb{E}[L_{\tau_j}]$ (MDBN - HypoExp)"),
+        ("diff_var_mdbn_hypo", r"$\mathrm{Var}(\widehat{L_{\tau_j}}) - \mathrm{Var}(L_{\tau_j})$ (MDBN - HypoExp)"),
+        ("diff_iqr_mdbn_gt", r"$\mathrm{IQR}(\widehat{L_{\tau_j}}) - \mathrm{IQR}(L_{\tau_j})$ (MDBN - GT)"),
+        ("diff_iqr_mdbn_hypo", r"$\mathrm{IQR}(\widehat{L_{\tau_j}}) - \mathrm{IQR}(L_{\tau_j})$ (MDBN - HypoExp)")
     ]
 
     for col, xlabel in density_specs:
         # Overall
         fig, ax = plt.subplots(figsize=(8,6))
+
+        ax.tick_params(axis='both', which='both', direction='out', length=6, width=1.5, labelsize=12)
+        ax.xaxis.set_ticks_position('bottom')
+        ax.yaxis.set_ticks_position('left')
+        for spine in ["left", "bottom"]:
+                ax.spines[spine].set_visible(True)
+
         vals = df[col].dropna()
         if len(vals) >= 2 and np.std(vals) > 0:
             sns.kdeplot(vals, fill=True, ax=ax)
@@ -1972,7 +2043,7 @@ def generate_density_scatter(csv_file):
             ax.axvline(vals.iloc[0] if len(vals) else 0, linestyle="--")
         ax.set_xlabel(xlabel)
         ax.set_ylabel("Density")
-        ax.set_title(f"{xlabel} - Overall")
+        #ax.set_title(f"{xlabel} - Overall")
         plt.tight_layout()
         fig.savefig(os.path.join(density_dir, f"{safe_name(col)}_overall.png"), dpi=300)
         plt.close(fig)
@@ -1981,6 +2052,13 @@ def generate_density_scatter(csv_file):
         for group in ["Conditional", "Interventional", "Param intervention", "Add/Sub"]:
             subset = df[df["query_group"] == group]
             fig, ax = plt.subplots(figsize=(8,6))
+
+            ax.tick_params(axis='both', which='both', direction='out', length=6, width=1.5, labelsize=12)
+            ax.xaxis.set_ticks_position('bottom')
+            ax.yaxis.set_ticks_position('left')
+            for spine in ["left", "bottom"]:
+                ax.spines[spine].set_visible(True)
+
             vals = subset[col].dropna()
             if len(vals) >= 2 and np.std(vals) > 0:
                 sns.kdeplot(vals, fill=True, ax=ax, color=query_colors[group])
@@ -1988,7 +2066,7 @@ def generate_density_scatter(csv_file):
                 ax.axvline(vals.iloc[0], linestyle="--", color=query_colors[group])
             ax.set_xlabel(xlabel)
             ax.set_ylabel("Density")
-            ax.set_title(f"{xlabel} - {group}")
+            #ax.set_title(f"{xlabel} - {group}")
             plt.tight_layout()
             fig.savefig(os.path.join(density_dir, f"{safe_name(col)}_{safe_name(group)}.png"), dpi=300)
             plt.close(fig)
@@ -1996,11 +2074,20 @@ def generate_density_scatter(csv_file):
     # -----------------------------
     # Scatter Plots
     # -----------------------------
+    # add SD scatter plots
+    df["sd_mdbn"] = np.sqrt(df["var_mdbn"])
+    df["sd_gt"] = np.sqrt(df["var_gt"])
+    df["sd_hypo"] = np.sqrt(df["var_hypo"])
+
     scatter_specs = [
         ("mean_mdbn", "mean_gt", "Mean (MDBN vs General/GT)"),
         ("var_mdbn", "var_gt", "Variance (MDBN vs General/GT)"),
+        ("sd_mdbn", "sd_gt", "SD (MDBN vs General/GT)"),
         ("mean_mdbn", "mean_hypo", "Mean (MDBN vs HypoExp)"),
         ("var_mdbn", "var_hypo", "Variance (MDBN vs HypoExp)"),
+        ("sd_mdbn", "sd_hypo", "SD (MDBN vs HypoExp)"),
+        ("iqr_mdbn", "iqr_gt", "IQR (MDBN vs General/GT)"),
+        ("iqr_mdbn", "iqr_hypo", "IQR (MDBN vs HypoExp)")
     ]
 
     for x_col, y_col, title_prefix in scatter_specs:
@@ -2013,29 +2100,49 @@ def generate_density_scatter(csv_file):
         ]
 
         for group_name, subset in plot_groups:
-            x = subset[x_col].to_numpy(dtype=float)
-            y = subset[y_col].to_numpy(dtype=float)
+            # Ground truth on x, MDBN on y
+            x = subset[y_col].to_numpy(dtype=float)
+            y = subset[x_col].to_numpy(dtype=float)
             mask = np.isfinite(x) & np.isfinite(y)
             x, y = x[mask], y[mask]
 
             fig, ax = plt.subplots(figsize=(8,6))
+
+            ax.tick_params(axis='both', which='both', direction='out', length=6, width=1.5, labelsize=25)
+            ax.xaxis.set_ticks_position('bottom')
+            ax.yaxis.set_ticks_position('left')
+            for spine in ["left", "bottom"]:
+                ax.spines[spine].set_visible(True)
+
             if group_name == "Overall":
                 ax.scatter(x, y, alpha=0.75, s=35)
             else:
                 ax.scatter(x, y, alpha=0.8, s=40, color=query_colors[group_name])
 
             add_y_eq_x(ax, x, y)
-            r2, pearson, spearman, smape = compute_stats(y_true=y, y_pred=x)
-            plot_stats_box(ax, r2, pearson, spearman, smape)
+            ax.locator_params(axis='both', nbins=6)
+            mae = compute_stats(y_true=x, y_pred=y)
+            #plot_stats_box(ax, r2, pearson, spearman, smape, mae, mape, medae)
+            plot_stats_box(ax, mae)
 
-            ax.set_xlabel(x_col)
-            ax.set_ylabel(y_col)
-            ax.set_title(f"{title_prefix} - {group_name}")
-            ax.legend(loc="lower right")
+            if "mean" in x_col:
+                ax.set_xlabel(r"Ground truth: $\mathbb{E}[L_{\tau_j}]$", fontsize=25)
+                ax.set_ylabel(r"MDBN: $\mathbb{E}[\widehat{L_{\tau_j}}]$", fontsize=25)
+            elif "var" in x_col:
+                ax.set_xlabel(r"Ground truth: $\mathrm{Var}(L_{\tau_j})$", fontsize=25)
+                ax.set_ylabel(r"MDBN: $\mathrm{Var}(\widehat{L_{\tau_j}})$", fontsize=25)
+            elif "sd" in x_col:
+                ax.set_xlabel(r"Ground truth: $\mathrm{SD}(L_{\tau_j})$", fontsize=25)
+                ax.set_ylabel(r"MDBN: $\mathrm{SD}(\widehat{L_{\tau_j}})$", fontsize=25)
+            elif "iqr" in x_col:
+                ax.set_xlabel(r"Ground truth: $\mathrm{IQR}(L_{\tau_j})$", fontsize=25)
+                ax.set_ylabel(r"MDBN: $\mathrm{IQR}(\widehat{L_{\tau_j}})$", fontsize=25)
+
+            ax.grid(False)
             plt.tight_layout()
-            out_name = f"{safe_name(x_col)}_vs_{safe_name(y_col)}_{safe_name(group_name)}.png"
-            fig.savefig(os.path.join(scatter_dir, out_name), dpi=300)
-            plt.close(fig)
+            out_name = f"{safe_name(x_col)}_vs_{safe_name(y_col)}_{safe_name(group_name)}.pdf"
+            fig.savefig(os.path.join(scatter_dir, out_name), bbox_inches="tight")
+
 
     def plot_ecdf(ax, values, color=None, label=None):
         """
@@ -2055,18 +2162,34 @@ def generate_density_scatter(csv_file):
     # -----------------------------
     # CDF Plots (absolute error)
     # -----------------------------
+    df["diff_sd_mdbn_gt"] = df["sd_mdbn"] - df["sd_gt"]
+    df["diff_sd_mdbn_hypo"] = df["sd_mdbn"] - df["sd_hypo"]
+
     cdf_dir = os.path.join("results", base_name, "cdf")
     os.makedirs(cdf_dir, exist_ok=True)
 
     cdf_specs = [
         ("diff_mean_mdbn_gt", "Absolute mean difference |MDBN - General/GT|"),
         ("diff_var_mdbn_gt", "Absolute variance difference |MDBN - General/GT|"),
+        ("diff_sd_mdbn_gt", "Absolute SD difference |MDBN - General/GT|"),
+
         ("diff_mean_mdbn_hypo", "Absolute mean difference |MDBN - HypoExp|"),
         ("diff_var_mdbn_hypo", "Absolute variance difference |MDBN - HypoExp|"),
+        ("diff_sd_mdbn_hypo", "Absolute SD difference |MDBN - HypoExp|"),
+
+        ("diff_iqr_mdbn_gt", "Absolute IQR difference |MDBN - General/GT|"),
+        ("diff_iqr_mdbn_hypo", "Absolute IQR difference |MDBN - HypoExp|")
     ]
 
     for col, xlabel in cdf_specs:
         fig, ax = plt.subplots(figsize=(8, 6))
+        
+        ax.tick_params(axis='both', which='both', direction='out', length=6, width=1.5, labelsize=12)
+        ax.xaxis.set_ticks_position('bottom')
+        ax.yaxis.set_ticks_position('left')
+
+        for spine in ["left", "bottom"]:
+            ax.spines[spine].set_visible(True)
 
         abs_vals = np.abs(df[col].dropna().to_numpy(dtype=float))
         abs_vals = abs_vals[np.isfinite(abs_vals)]
@@ -2076,11 +2199,28 @@ def generate_density_scatter(csv_file):
         else:
             plot_ecdf(ax, abs_vals, color="#1f77b4", label="ECDF of absolute error")
 
-        ax.set_xlabel(xlabel)
-        ax.set_ylabel("ECDF")
-        ax.set_title(f"{xlabel} - Overall")
-        ax.grid(True)
-        ax.legend(loc="lower right")
+        if "mean" in col:
+            ax.set_xlabel(
+                r"$\left|\mathbb{E}[\widehat{L_{\tau_j}}] - \mathbb{E}[L_{\tau_j}]\right|$",
+                fontsize=14
+            )
+        elif "var" in col:
+            ax.set_xlabel(
+                r"$\left|\mathrm{Var}(\widehat{L_{\tau_j}}) - \mathrm{Var}(L_{\tau_j})\right|$",
+                fontsize=14
+            )
+        elif "sd" in col:
+            ax.set_xlabel(
+                r"$\left|\mathrm{SD}(\widehat{L_{\tau_j}}) - \mathrm{SD}(L_{\tau_j})\right|$",
+                fontsize=14
+            )
+        elif "iqr" in col:
+            ax.set_xlabel(
+                r"$\left|\mathrm{IQR}(\widehat{L_{\tau_j}}) - \mathrm{IQR}(L_{\tau_j})\right|$",
+                fontsize=14
+            )
+        ax.set_ylabel(r"$\mathrm{ECDF}$", fontsize=14)
+        ax.grid(False)
         plt.tight_layout()
 
         fig.savefig(
@@ -2118,10 +2258,10 @@ if __name__ == '__main__':
 
     #generate_weibull_csv(f'config/weibull_query_workload_exp-5.json')
 
-    #generate_beta_csv(f'config/beta_query_workload_exp-1.json')
+    #generate_beta_csv(f'config/beta_query_workload_exp-3.json')
 
-    #generate_density_scatter(f'results/query_workload_exp-6_gamma_moments.csv')
+    generate_density_scatter(f'results/query_workload_exp-6_gamma_moments.csv')
 
-    #generate_density_scatter(f'results/weibull_query_workload_exp-5_weibull_moments.csv')
+    generate_density_scatter(f'results/weibull_query_workload_exp-5_weibull_moments.csv')
 
-    generate_density_scatter(f'results/beta_query_workload_exp-1_beta_moments.csv')
+    generate_density_scatter(f'results/beta_query_workload_exp-3_beta_moments.csv')

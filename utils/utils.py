@@ -372,7 +372,34 @@ def compute_jsd_detailed(config_file, gt_nreps=30):
         for metric in ['jsd_dbn_gamma','jsd_dbn_hypo','jsd_gamma_hypo']:
             avg_jsds[intv_type][metric] = jsd_analysis[jsd_analysis['intv_type'] == intv_type][metric].mean()
 
-    print(avg_jsds)
+    #print(avg_jsds)
+
+    avg_jsds = {}
+    overall_jsds = {}
+
+    metrics_list = ['jsd_dbn_gamma', 'jsd_dbn_hypo', 'jsd_gamma_hypo']
+
+    # Compute mean per intervention type
+    for intv_type in jsd_analysis['intv_type'].unique():
+        avg_jsds[intv_type] = {}
+        subset = jsd_analysis[jsd_analysis['intv_type'] == intv_type]
+        for metric in metrics_list:
+            avg_jsds[intv_type][metric] = subset[metric].mean()
+
+    # Compute overall mean across all types
+    for metric in metrics_list:
+        overall_jsds[metric] = jsd_analysis[metric].mean()
+
+    # Print results
+    print("Mean JSD by query type:")
+    for intv_type, metrics in avg_jsds.items():
+        print(f"\n{intv_type}:")
+        for metric, value in metrics.items():
+            print(f"  {metric}: {value:.4f}" if value is not None else f"  {metric}: None")
+
+    print("\nOverall mean JSD across all query types:")
+    for metric, value in overall_jsds.items():
+        print(f"  {metric}: {value:.4f}" if value is not None else f"  {metric}: None")
 
     # Save the DataFrame to a CSV file
     results_csv_dir = 'results'
@@ -383,6 +410,7 @@ def compute_jsd_detailed(config_file, gt_nreps=30):
 
     print(jsd_analysis)
 
+
     # ---- Produce a box plot of JSD grouped by intervention type ----
     if not jsd_analysis.empty:
         for metric in ['jsd_dbn_gamma','jsd_dbn_hypo','jsd_gamma_hypo']:
@@ -390,19 +418,51 @@ def compute_jsd_detailed(config_file, gt_nreps=30):
             plt.figure(figsize=(8,6))
             intv_types = sorted(jsd_analysis['intv_type'].unique())
 
+            # Mapping for nicer labels
+            label_map = {
+                'conditional': r'$Q_{\mathrm{cond}}$',
+                'parameter_intervention': r'$Q_{\mathrm{param}}$',
+                'interventional': r'$Q_{\mathrm{qint}}$',
+                'add_sub': r'$Q_{\mathrm{qchg}}$'
+            }
+
+            labels = [label_map.get(t, t) for t in intv_types]
+
             data_to_plot = [
                 jsd_analysis[jsd_analysis['intv_type'] == t][metric].dropna().values
                 for t in intv_types
             ]
 
-            plt.boxplot(data_to_plot, labels=intv_types, showfliers=True)
-            plt.xlabel('Intervention Type')
-            plt.ylabel('Jensen-Shannon Distance (PMF)')
-            plt.title(f'{metric} ({workload_name})')
-            plt.grid(axis='y', linestyle='--', alpha=0.4)
+            # Make outliers very small
+            flierprops = dict(marker='o', markersize=2, linestyle='none', alpha=0.4)
 
-            boxplot_fname = os.path.join(results_csv_dir, f"{workload_name}_{metric}_boxplot.png")
-            plt.savefig(boxplot_fname, bbox_inches='tight', dpi=150)
+            # Make median line black
+            medianprops = dict(color='black', linewidth=1.0)
+
+            plt.boxplot(
+                data_to_plot,
+                labels=labels,
+                showfliers=True,
+                flierprops=flierprops,
+                medianprops=medianprops
+            )
+
+            # Get current axes
+            ax = plt.gca()
+
+            # Set tick label font size
+            ax.tick_params(axis='x', labelsize=20)
+            ax.tick_params(axis='y', labelsize=20)
+
+            # Set axis label font size
+            ax.set_xlabel('Query Type', fontsize=18)
+            ax.set_ylabel('Jensen-Shannon Distance (JSD)', fontsize=18)
+
+            plt.ylim(0, 1)
+
+            boxplot_fname = os.path.join(results_csv_dir, f"{workload_name}_{metric}_boxplot.pdf")
+            plt.tight_layout()
+            plt.savefig(boxplot_fname)
 
             # Also try to save to the figures folder of the first query if available
             try:
@@ -416,6 +476,618 @@ def compute_jsd_detailed(config_file, gt_nreps=30):
                 pass
     else:
         logger.warning('No valid JSDs to plot; boxplot skipped.')
+
+
+
+def compute_jsd_detailed_weibull(config_file, gt_nreps=30):
+    """Detailed analysis of the JSD for different interventions."""
+
+    # Load config file (JSON or YAML)
+    with open(config_file, 'r', encoding='utf-8') as f:
+        config = yaml.safe_load(f)
+
+    # Attempt to infer the workload name (used for locating the posterior files)
+    workload_name = os.path.basename(config_file).split('.')[0]
+
+    jsd_analysis = pd.DataFrame(columns=[
+        'exp_num', 'expt_name', 'intv_type', 'intv_var', 'intv_time',
+        'intv_val', 'query_var', 'query_time', 'queue_setting',
+        'jsd_dbn_weibull','jsd_dbn_hypo','jsd_weibull_hypo',
+        'num_conditional_events', 'inference_time', 'inference_compute_time'
+    ])
+
+    # Counters for reporting skipped experiments and reasons
+    skipped_counters = Counter()
+    total_count = 0
+
+    for experiment in config:
+        total_count += 1
+        query_details = config[experiment]
+        exp_num = int(experiment.split('_')[-1])
+        logger.info(f'Experiment {exp_num}')
+
+        # --- Ground truth paths for weibull and hypo ---
+        primary_gt_weibull_path = os.path.join(query_details['gt_results_folder'], query_details['expt_name'], f'gt-exp-{exp_num}-weibull.pkl')
+        pooled_gt_weibull_path = os.path.join(query_details['gt_results_folder'], f'queries_nreps-{gt_nreps}_pooled', f'gt-exp-{exp_num}-weibull.pkl')
+
+        primary_gt_hypo_path = os.path.join(query_details['gt_results_folder'], query_details['expt_name'], f'gt-exp-{exp_num}-hypoexp.pkl')
+        pooled_gt_hypo_path = os.path.join(query_details['gt_results_folder'], f'queries_nreps-{gt_nreps}_pooled', f'gt-exp-{exp_num}-hypoexp.pkl')
+
+        if os.path.exists(primary_gt_weibull_path):
+            weibull_gt_used = primary_gt_weibull_path
+        elif os.path.exists(pooled_gt_weibull_path):
+            weibull_gt_used = pooled_gt_weibull_path
+        else:
+            logger.warning(f'Experiment {exp_num} missing weibull GT. Skipping...')
+            skipped_counters['missing_weibull_gt'] += 1
+            continue
+
+        if os.path.exists(primary_gt_hypo_path):
+            hypo_gt_used = primary_gt_hypo_path
+        elif os.path.exists(pooled_gt_hypo_path):
+            hypo_gt_used = pooled_gt_hypo_path
+        else:
+            logger.warning(f'Experiment {exp_num} missing hypo GT. Skipping...')
+            skipped_counters['missing_hypo_gt'] += 1
+            continue
+
+        try:
+            with open(weibull_gt_used, 'rb') as f:
+                weibull_gt_dict = pickle.load(f)
+            with open(hypo_gt_used, 'rb') as f:
+                hypo_gt_dict = pickle.load(f)
+            logger.debug(f'Ground truth loaded for experiment {exp_num}')
+        except Exception as e:
+            logger.warning(f'Could not load GT for experiment {exp_num}: {e}. Skipping...')
+            skipped_counters['bad_gt'] += 1
+            continue
+
+        # For small exp numbers, try to compute number of conditional events from CSV if available
+        if exp_num <= 50:
+            try:
+                gt_csv = pd.read_csv(os.path.join(os.path.dirname(weibull_gt_used), f'gt-exp-{exp_num}-weibull.csv'))
+                num_cond_events = len(gt_csv[gt_csv['Event'] == 'Conditional'])
+            except FileNotFoundError:
+                num_cond_events = None
+                logger.warning(f'Experiment {exp_num} has no ground truth CSV file. Continuing without num_cond_events.')
+        else:
+            num_cond_events = None
+
+        # Compose posterior filename path:
+        results_folder_for_query = query_details['results_folder']
+        posterior_path = os.path.join(results_folder_for_query, workload_name, f'weibull-posterior-exp-{exp_num}.pkl')
+
+        if not os.path.exists(posterior_path):
+            logger.warning(f'Experiment {exp_num} has no posterior file at {posterior_path}. Skipping...')
+            skipped_counters['missing_posterior'] += 1
+            continue
+
+        # Load posterior
+        try:
+            inferred_data = pd.read_pickle(posterior_path)
+            inferred_pd = inferred_data.get('Posterior') if isinstance(inferred_data, dict) else inferred_data
+            inference_time = inferred_data.get('InferenceTime') if isinstance(inferred_data, dict) else None
+            inference_compute_time = inferred_data.get('FullInferenceTime') if isinstance(inferred_data, dict) else None
+        except Exception as e:
+            logger.warning(f'Could not load posterior for experiment {exp_num}: {e}. Skipping...')
+            skipped_counters['bad_posterior'] += 1
+            continue
+
+        # Validate GT and posterior dictionaries
+        gt_weibull = weibull_gt_dict.get('query_dist') if isinstance(weibull_gt_dict, dict) else None
+        gt_hypo  = hypo_gt_dict.get('query_dist') if isinstance(hypo_gt_dict, dict) else None
+
+        if gt_weibull is None or gt_hypo is None:
+            logger.warning(f'Experiment {exp_num} GT missing "query_dist". Skipping...')
+            skipped_counters['bad_gt_format'] += 1
+            continue
+
+        # If GT sums to zero, skip but count it
+        if sum(gt_weibull.values()) == 0 or sum(gt_hypo.values()) == 0:
+            logger.warning(f'Experiment {exp_num} has zero probability in ground truth! Skipping...')
+            skipped_counters['zero_gt'] += 1
+            continue
+
+        # Align inferred and GT distributions
+        try:
+            if isinstance(inferred_pd, pd.Series):
+                inferred_series = inferred_pd
+            else:
+                inferred_series = pd.Series(inferred_pd)
+
+            states = sorted(set(list(gt_weibull.keys()) + list(gt_hypo.keys()) + list(inferred_series.index)))
+
+            posterior_probs = np.array([float(inferred_series.get(s,0.0)) for s in states])
+            weibull_probs    = np.array([float(gt_weibull.get(s,0.0)) for s in states])
+            hypo_probs     = np.array([float(gt_hypo.get(s,0.0)) for s in states])
+
+            posterior_probs /= posterior_probs.sum()
+            weibull_probs /= weibull_probs.sum()
+            hypo_probs /= hypo_probs.sum()
+        except Exception as e:
+            logger.warning(f'Error aligning distributions for experiment {exp_num}: {e}. Skipping...')
+            skipped_counters['alignment_error'] += 1
+            continue
+
+        # Compute 3 JSDs
+        try:
+            jsd_dbn_weibull = distance.jensenshannon(weibull_probs, posterior_probs)
+            jsd_dbn_hypo  = distance.jensenshannon(hypo_probs, posterior_probs)
+            jsd_weibull_hypo = distance.jensenshannon(weibull_probs, hypo_probs)
+
+            if np.isnan(jsd_dbn_weibull) or np.isnan(jsd_dbn_hypo) or np.isnan(jsd_weibull_hypo):
+                logger.warning(f'Experiment {exp_num} JSD is NaN. Skipping...')
+                skipped_counters['nan_jsd'] += 1
+                continue
+        except Exception as e:
+            logger.warning(f'Error computing JSD for experiment {exp_num}: {e}. Skipping...')
+            skipped_counters['jsd_error'] += 1
+            continue
+
+        # Extract intervention metadata
+        try:
+            intv = query_details.get('interventions', [{}])[0]
+            intv_type = intv.get('intervention_type', 'unknown')
+            intv_var = intv.get('intervention_variable')
+            intv_time = intv.get('intervention_start')
+            intv_val = intv.get('intervention_value')
+        except Exception:
+            intv_type = 'unknown'
+            intv_var = None
+            intv_time = None
+            intv_val = None
+
+        # Populate the DataFrame
+        jsd_analysis.loc[len(jsd_analysis)] = [
+            exp_num, query_details.get('expt_name'),
+            intv_type, intv_var, intv_time,
+            intv_val, query_details.get('query_variable'), query_details.get('query_time'),
+            query_details.get('expt_name').split('_')[-1] if query_details.get('expt_name') else None,
+            jsd_dbn_weibull, jsd_dbn_hypo, jsd_weibull_hypo,
+            num_cond_events, inference_time, inference_compute_time
+        ]
+
+    # Merge additive and subtractive interventions
+    jsd_analysis['intv_type'] = jsd_analysis['intv_type'].replace({
+        'additive': 'add_sub',
+        'subtractive': 'add_sub'
+    })
+
+    # Summary stats
+    summary = {}
+    for intv_type in jsd_analysis['intv_type'].unique():
+        summary[intv_type] = {}
+        for metric in ['jsd_dbn_weibull','jsd_dbn_hypo','jsd_weibull_hypo']:
+            vals = jsd_analysis[jsd_analysis['intv_type'] == intv_type][metric].dropna()
+            summary[intv_type][metric] = {
+                'count': int(vals.shape[0]),
+                'mean': float(vals.mean()) if not vals.empty else None,
+                'median': float(vals.median()) if not vals.empty else None,
+                'std': float(vals.std()) if not vals.empty else None,
+            }
+
+    logger.info(f'JSD summary by intervention type: {summary}')
+    logger.info(f'Skipped counts: {dict(skipped_counters)}')
+    logger.info(f'Total experiments processed: {total_count}, valid: {len(jsd_analysis)}, skipped: {sum(skipped_counters.values())}')
+
+    # Compute the average JSD for each type of intervention (as before)
+    metrics_list = ['jsd_dbn_weibull', 'jsd_dbn_hypo', 'jsd_weibull_hypo']
+
+    avg_jsds = {}
+    overall_jsds = {}
+
+    # Compute mean per intervention type
+    for intv_type in jsd_analysis['intv_type'].unique():
+        avg_jsds[intv_type] = {}
+        subset = jsd_analysis[jsd_analysis['intv_type'] == intv_type]
+        for metric in metrics_list:
+            avg_jsds[intv_type][metric] = subset[metric].mean()
+
+    # Compute overall mean across all types
+    for metric in metrics_list:
+        overall_jsds[metric] = jsd_analysis[metric].mean()
+
+    # Print results
+    print("Mean JSD by query type:")
+    for intv_type, metrics in avg_jsds.items():
+        print(f"\n{intv_type}:")
+        for metric, value in metrics.items():
+            print(f"  {metric}: {value:.4f}" if value is not None else f"  {metric}: None")
+
+    print("\nOverall mean JSD across all query types:")
+    for metric, value in overall_jsds.items():
+        print(f"  {metric}: {value:.4f}" if value is not None else f"  {metric}: None")
+
+    print("Mean JSD by query type:")
+    for intv_type, metrics in avg_jsds.items():
+        print(f"\n{intv_type}:")
+        for metric, value in metrics.items():
+            print(f"  {metric}: {value:.4f}" if value is not None else f"  {metric}: None")
+
+    # Save the DataFrame to a CSV file
+    results_csv_dir = 'results'
+    os.makedirs(results_csv_dir, exist_ok=True)
+    csv_fname = f"{results_csv_dir}/{workload_name}_results.csv"
+    jsd_analysis.to_csv(csv_fname, index=False)
+    logger.info(f'Saved detailed JSD CSV to {csv_fname}')
+
+    print(jsd_analysis)
+
+    # ---- Produce a box plot of JSD grouped by intervention type ----
+    if not jsd_analysis.empty:
+        for metric in ['jsd_dbn_weibull','jsd_dbn_hypo','jsd_weibull_hypo']:
+
+            plt.figure(figsize=(8,6))
+            intv_types = sorted(jsd_analysis['intv_type'].unique())
+
+            # Mapping for nicer labels
+            label_map = {
+                'conditional': r'$Q_{\mathrm{cond}}$',
+                'parameter_intervention': r'$Q_{\mathrm{param}}$',
+                'interventional': r'$Q_{\mathrm{qint}}$',
+                'add_sub': r'$Q_{\mathrm{qchg}}$'
+            }
+
+            labels = [label_map.get(t, t) for t in intv_types]
+
+            data_to_plot = [
+                jsd_analysis[jsd_analysis['intv_type'] == t][metric].dropna().values
+                for t in intv_types
+            ]
+
+            # Make outliers very small
+            flierprops = dict(marker='o', markersize=2, linestyle='none', alpha=0.4)
+
+            # Make median line black
+            medianprops = dict(color='black', linewidth=1.0)
+
+            plt.boxplot(
+                data_to_plot,
+                labels=labels,
+                showfliers=True,
+                flierprops=flierprops,
+                medianprops=medianprops
+            )
+
+            # Get current axes
+            ax = plt.gca()
+
+            # Set tick label font size
+            ax.tick_params(axis='x', labelsize=20)
+            ax.tick_params(axis='y', labelsize=20)
+
+            # Set axis label font size
+            ax.set_xlabel('Query Type', fontsize=20)
+            ax.set_ylabel('Jensen-Shannon Distance (JSD)', fontsize=20)
+            plt.ylim(0, 1)
+
+            boxplot_fname = os.path.join(results_csv_dir, f"{workload_name}_{metric}_boxplot.pdf")
+            #plt.savefig(boxplot_fname, bbox_inches='tight', dpi=300)
+            plt.tight_layout()
+            plt.savefig(boxplot_fname)
+
+            # Also try to save to the figures folder of the first query if available
+            try:
+                first_query = next(iter(config.values()))
+                figures_folder = first_query.get('figures_folder')
+                if figures_folder:
+                    os.makedirs(figures_folder, exist_ok=True)
+                    #fig_save_path = os.path.join(figures_folder, f"{workload_name}_{metric}_boxplot.png")
+                    fig_save_path = os.path.join(figures_folder, f"{workload_name}_{metric}_boxplot.pdf")
+                    plt.savefig(fig_save_path, bbox_inches='tight', dpi=150)
+            except Exception:
+                pass
+    else:
+        logger.warning('No valid JSDs to plot; boxplot skipped.')
+
+
+
+def compute_jsd_detailed_beta(config_file, gt_nreps=30):
+    """Detailed analysis of the JSD for different interventions."""
+
+    # Load config file (JSON or YAML)
+    with open(config_file, 'r', encoding='utf-8') as f:
+        config = yaml.safe_load(f)
+
+    # Attempt to infer the workload name (used for locating the posterior files)
+    workload_name = os.path.basename(config_file).split('.')[0]
+
+    jsd_analysis = pd.DataFrame(columns=[
+        'exp_num', 'expt_name', 'intv_type', 'intv_var', 'intv_time',
+        'intv_val', 'query_var', 'query_time', 'queue_setting',
+        'jsd_dbn_beta','jsd_dbn_hypo','jsd_beta_hypo',
+        'num_conditional_events', 'inference_time', 'inference_compute_time'
+    ])
+
+    # Counters for reporting skipped experiments and reasons
+    skipped_counters = Counter()
+    total_count = 0
+
+    for experiment in config:
+        total_count += 1
+        query_details = config[experiment]
+        exp_num = int(experiment.split('_')[-1])
+        logger.info(f'Experiment {exp_num}')
+
+        # --- Ground truth paths for beta and hypo ---
+        primary_gt_beta_path = os.path.join(query_details['gt_results_folder'], query_details['expt_name'], f'gt-exp-{exp_num}-beta.pkl')
+        pooled_gt_beta_path = os.path.join(query_details['gt_results_folder'], f'queries_nreps-{gt_nreps}_pooled', f'gt-exp-{exp_num}-beta.pkl')
+
+        primary_gt_hypo_path = os.path.join(query_details['gt_results_folder'], query_details['expt_name'], f'gt-exp-{exp_num}-hypoexp.pkl')
+        pooled_gt_hypo_path = os.path.join(query_details['gt_results_folder'], f'queries_nreps-{gt_nreps}_pooled', f'gt-exp-{exp_num}-hypoexp.pkl')
+
+        if os.path.exists(primary_gt_beta_path):
+            beta_gt_used = primary_gt_beta_path
+        elif os.path.exists(pooled_gt_beta_path):
+            beta_gt_used = pooled_gt_beta_path
+        else:
+            logger.warning(f'Experiment {exp_num} missing beta GT. Skipping...')
+            skipped_counters['missing_beta_gt'] += 1
+            continue
+
+        if os.path.exists(primary_gt_hypo_path):
+            hypo_gt_used = primary_gt_hypo_path
+        elif os.path.exists(pooled_gt_hypo_path):
+            hypo_gt_used = pooled_gt_hypo_path
+        else:
+            logger.warning(f'Experiment {exp_num} missing hypo GT. Skipping...')
+            skipped_counters['missing_hypo_gt'] += 1
+            continue
+
+        try:
+            with open(beta_gt_used, 'rb') as f:
+                beta_gt_dict = pickle.load(f)
+            with open(hypo_gt_used, 'rb') as f:
+                hypo_gt_dict = pickle.load(f)
+            logger.debug(f'Ground truth loaded for experiment {exp_num}')
+        except Exception as e:
+            logger.warning(f'Could not load GT for experiment {exp_num}: {e}. Skipping...')
+            skipped_counters['bad_gt'] += 1
+            continue
+
+        # For small exp numbers, try to compute number of conditional events from CSV if available
+        if exp_num <= 50:
+            try:
+                gt_csv = pd.read_csv(os.path.join(os.path.dirname(beta_gt_used), f'gt-exp-{exp_num}-beta.csv'))
+                num_cond_events = len(gt_csv[gt_csv['Event'] == 'Conditional'])
+            except FileNotFoundError:
+                num_cond_events = None
+                logger.warning(f'Experiment {exp_num} has no ground truth CSV file. Continuing without num_cond_events.')
+        else:
+            num_cond_events = None
+
+        # Compose posterior filename path:
+        results_folder_for_query = query_details['results_folder']
+        posterior_path = os.path.join(results_folder_for_query, workload_name, f'beta-posterior-exp-{exp_num}.pkl')
+
+        if not os.path.exists(posterior_path):
+            logger.warning(f'Experiment {exp_num} has no posterior file at {posterior_path}. Skipping...')
+            skipped_counters['missing_posterior'] += 1
+            continue
+
+        # Load posterior
+        try:
+            inferred_data = pd.read_pickle(posterior_path)
+            inferred_pd = inferred_data.get('Posterior') if isinstance(inferred_data, dict) else inferred_data
+            inference_time = inferred_data.get('InferenceTime') if isinstance(inferred_data, dict) else None
+            inference_compute_time = inferred_data.get('FullInferenceTime') if isinstance(inferred_data, dict) else None
+        except Exception as e:
+            logger.warning(f'Could not load posterior for experiment {exp_num}: {e}. Skipping...')
+            skipped_counters['bad_posterior'] += 1
+            continue
+
+        # Validate GT and posterior dictionaries
+        gt_beta = beta_gt_dict.get('query_dist') if isinstance(beta_gt_dict, dict) else None
+        gt_hypo  = hypo_gt_dict.get('query_dist') if isinstance(hypo_gt_dict, dict) else None
+
+        if gt_beta is None or gt_hypo is None:
+            logger.warning(f'Experiment {exp_num} GT missing "query_dist". Skipping...')
+            skipped_counters['bad_gt_format'] += 1
+            continue
+
+        # If GT sums to zero, skip but count it
+        if sum(gt_beta.values()) == 0 or sum(gt_hypo.values()) == 0:
+            logger.warning(f'Experiment {exp_num} has zero probability in ground truth! Skipping...')
+            skipped_counters['zero_gt'] += 1
+            continue
+
+        # Align inferred and GT distributions
+        try:
+            if isinstance(inferred_pd, pd.Series):
+                inferred_series = inferred_pd
+            else:
+                inferred_series = pd.Series(inferred_pd)
+
+            states = sorted(set(list(gt_beta.keys()) + list(gt_hypo.keys()) + list(inferred_series.index)))
+
+            posterior_probs = np.array([float(inferred_series.get(s,0.0)) for s in states])
+            beta_probs    = np.array([float(gt_beta.get(s,0.0)) for s in states])
+            hypo_probs     = np.array([float(gt_hypo.get(s,0.0)) for s in states])
+
+            posterior_probs /= posterior_probs.sum()
+            beta_probs /= beta_probs.sum()
+            hypo_probs /= hypo_probs.sum()
+        except Exception as e:
+            logger.warning(f'Error aligning distributions for experiment {exp_num}: {e}. Skipping...')
+            skipped_counters['alignment_error'] += 1
+            continue
+
+        # Compute 3 JSDs
+        try:
+            jsd_dbn_beta = distance.jensenshannon(beta_probs, posterior_probs)
+            jsd_dbn_hypo  = distance.jensenshannon(hypo_probs, posterior_probs)
+            jsd_beta_hypo = distance.jensenshannon(beta_probs, hypo_probs)
+
+            if np.isnan(jsd_dbn_beta) or np.isnan(jsd_dbn_hypo) or np.isnan(jsd_beta_hypo):
+                logger.warning(f'Experiment {exp_num} JSD is NaN. Skipping...')
+                skipped_counters['nan_jsd'] += 1
+                continue
+        except Exception as e:
+            logger.warning(f'Error computing JSD for experiment {exp_num}: {e}. Skipping...')
+            skipped_counters['jsd_error'] += 1
+            continue
+
+        # Extract intervention metadata
+        try:
+            intv = query_details.get('interventions', [{}])[0]
+            intv_type = intv.get('intervention_type', 'unknown')
+            intv_var = intv.get('intervention_variable')
+            intv_time = intv.get('intervention_start')
+            intv_val = intv.get('intervention_value')
+        except Exception:
+            intv_type = 'unknown'
+            intv_var = None
+            intv_time = None
+            intv_val = None
+
+        # Populate the DataFrame
+        jsd_analysis.loc[len(jsd_analysis)] = [
+            exp_num, query_details.get('expt_name'),
+            intv_type, intv_var, intv_time,
+            intv_val, query_details.get('query_variable'), query_details.get('query_time'),
+            query_details.get('expt_name').split('_')[-1] if query_details.get('expt_name') else None,
+            jsd_dbn_beta, jsd_dbn_hypo, jsd_beta_hypo,
+            num_cond_events, inference_time, inference_compute_time
+        ]
+
+    # Merge additive and subtractive interventions
+    jsd_analysis['intv_type'] = jsd_analysis['intv_type'].replace({
+        'additive': 'add_sub',
+        'subtractive': 'add_sub'
+    })
+
+    # Summary stats
+    summary = {}
+    for intv_type in jsd_analysis['intv_type'].unique():
+        summary[intv_type] = {}
+        for metric in ['jsd_dbn_beta','jsd_dbn_hypo','jsd_beta_hypo']:
+            vals = jsd_analysis[jsd_analysis['intv_type'] == intv_type][metric].dropna()
+            summary[intv_type][metric] = {
+                'count': int(vals.shape[0]),
+                'mean': float(vals.mean()) if not vals.empty else None,
+                'median': float(vals.median()) if not vals.empty else None,
+                'std': float(vals.std()) if not vals.empty else None,
+            }
+
+    logger.info(f'JSD summary by intervention type: {summary}')
+    logger.info(f'Skipped counts: {dict(skipped_counters)}')
+    logger.info(f'Total experiments processed: {total_count}, valid: {len(jsd_analysis)}, skipped: {sum(skipped_counters.values())}')
+
+    # Compute the average JSD for each type of intervention (as before)
+    metrics_list = ['jsd_dbn_beta', 'jsd_dbn_hypo', 'jsd_beta_hypo']
+
+    avg_jsds = {}
+    overall_jsds = {}
+
+    # Compute mean per intervention type
+    for intv_type in jsd_analysis['intv_type'].unique():
+        avg_jsds[intv_type] = {}
+        subset = jsd_analysis[jsd_analysis['intv_type'] == intv_type]
+        for metric in metrics_list:
+            avg_jsds[intv_type][metric] = subset[metric].mean()
+
+    # Compute overall mean across all types
+    for metric in metrics_list:
+        overall_jsds[metric] = jsd_analysis[metric].mean()
+
+    # Print results
+    print("Mean JSD by query type:")
+    for intv_type, metrics in avg_jsds.items():
+        print(f"\n{intv_type}:")
+        for metric, value in metrics.items():
+            print(f"  {metric}: {value:.4f}" if value is not None else f"  {metric}: None")
+
+    print("\nOverall mean JSD across all query types:")
+    for metric, value in overall_jsds.items():
+        print(f"  {metric}: {value:.4f}" if value is not None else f"  {metric}: None")
+
+    print("Mean JSD by query type:")
+    for intv_type, metrics in avg_jsds.items():
+        print(f"\n{intv_type}:")
+        for metric, value in metrics.items():
+            print(f"  {metric}: {value:.4f}" if value is not None else f"  {metric}: None")
+
+    # Save the DataFrame to a CSV file
+    results_csv_dir = 'results'
+    os.makedirs(results_csv_dir, exist_ok=True)
+    csv_fname = f"{results_csv_dir}/{workload_name}_results.csv"
+    jsd_analysis.to_csv(csv_fname, index=False)
+    logger.info(f'Saved detailed JSD CSV to {csv_fname}')
+
+    print(jsd_analysis)
+
+    # ---- Produce a box plot of JSD grouped by intervention type ----
+    if not jsd_analysis.empty:
+        for metric in ['jsd_dbn_beta','jsd_dbn_hypo','jsd_beta_hypo']:
+
+            plt.figure(figsize=(8,6))
+            intv_types = sorted(jsd_analysis['intv_type'].unique())
+
+            # Mapping for nicer labels
+            label_map = {
+                'conditional': r'$Q_{\mathrm{cond}}$',
+                'parameter_intervention': r'$Q_{\mathrm{param}}$',
+                'interventional': r'$Q_{\mathrm{qint}}$',
+                'add_sub': r'$Q_{\mathrm{qchg}}$'
+            }
+
+            labels = [label_map.get(t, t) for t in intv_types]
+
+            data_to_plot = [
+                jsd_analysis[jsd_analysis['intv_type'] == t][metric].dropna().values
+                for t in intv_types
+            ]
+
+            # Make outliers very small
+            flierprops = dict(marker='o', markersize=2, linestyle='none', alpha=0.4)
+
+            # Make median line black
+            medianprops = dict(color='black', linewidth=1.0)
+
+            plt.boxplot(
+                data_to_plot,
+                labels=labels,
+                showfliers=True,
+                flierprops=flierprops,
+                medianprops=medianprops
+            )
+
+            # Get current axes
+            ax = plt.gca()
+
+            # Set tick label font size
+            ax.tick_params(axis='x', labelsize=20)
+            ax.tick_params(axis='y', labelsize=20)
+
+            # Set axis label font size
+            ax.set_xlabel('Query Type', fontsize=20)
+            ax.set_ylabel('Jensen-Shannon Distance (JSD)', fontsize=20)
+
+            plt.ylim(0, 1)
+
+            # Cleaner look (optional)
+            #ax = plt.gca()
+            # ax.spines['top'].set_visible(False)
+            # ax.spines['right'].set_visible(False)
+
+            #boxplot_fname = os.path.join(results_csv_dir, f"{workload_name}_{metric}_boxplot.png")
+            boxplot_fname = os.path.join(results_csv_dir, f"{workload_name}_{metric}_boxplot.pdf")
+            plt.tight_layout()
+            plt.savefig(boxplot_fname)
+
+            # Also try to save to the figures folder of the first query if available
+            try:
+                first_query = next(iter(config.values()))
+                figures_folder = first_query.get('figures_folder')
+                if figures_folder:
+                    os.makedirs(figures_folder, exist_ok=True)
+                    fig_save_path = os.path.join(figures_folder, f"{workload_name}_{metric}_boxplot.png")
+                    plt.savefig(fig_save_path, bbox_inches='tight', dpi=150)
+            except Exception:
+                pass
+    else:
+        logger.warning('No valid JSDs to plot; boxplot skipped.')
+
 
 
 def determine_stability(config_file, experiment_number):
@@ -476,8 +1148,19 @@ if __name__ == '__main__':
     INFERENCE_METHOD = 'exact-lazyprop'
     NREPS = 30
     compute_jsd_detailed(
-        f'config/query_workload_exp-6.json',
+       f'config/query_workload_exp-6.json',
+       gt_nreps=30)
+
+    compute_jsd_detailed_weibull(
+        f'config/weibull_query_workload_exp-5.json',
         gt_nreps=30)
+
+    compute_jsd_detailed_beta(
+       f'config/beta_query_workload_exp-3.json',
+       gt_nreps=30)
+
+    #compute_detailed_weibull_inference_results(f'config/weibull_query_workload_exp-5.json', gt_nreps=30)
+
     #compute_jsd_detailed(
     #    f'configs/indicator-{INDICATOR}_inference-{INFERENCE_METHOD}_nreps-{NREPS}_pooled-False.json',
     #    gt_nreps=30)
