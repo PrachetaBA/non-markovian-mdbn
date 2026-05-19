@@ -116,9 +116,6 @@ class GammaM1Simulation:
         logger.debug(
             f'Next event index: {next_event_idx}, Next event time: {next_event_time}'
         )
-        # logger.debug(f'Evidence times: {self.evidence_times}')
-        # logger.debug(f'Evidence values: {self.evidence_values}')
-        # logger.debug(f'Evidence types: {self.evidence_variables}')
 
         # If the next event is an intervention, then we need to remove it for future time steps
         if next_event_idx > 1:
@@ -394,6 +391,15 @@ if __name__ == "__main__":
     logger.info(
         f"Time to run the simulation in Python3: {end_time - start_time} seconds"
     )
+
+    temp_folder = f"{query_details['gt_results_folder']}/temp_data"
+    os.makedirs(temp_folder, exist_ok=True)
+    total_run_time = end_time - start_time
+    intervention_types = ", ".join([iv['intervention_type'] for iv in query_details.get('interventions', [])])
+    summary_file = f"{temp_folder}/sim_gamma_gt_exp_{experiment_number}.csv"
+    with open(summary_file, 'w') as f:
+        f.write("Experiment,TotalRunTime,InterventionType\n")  # header
+        f.write(f"{experiment_number},{total_run_time},{intervention_types}\n")
 
     if args.gt_folder != None:
         gt_folder = f"{query_details['gt_results_folder']}/{args.gt_folder}"

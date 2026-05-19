@@ -177,9 +177,7 @@ def construct_dbn(bn_file,
     logger.info(f"Maximum queue length ever observed or specified: {max_ql}")
 
     # Define domains for Lambda, Mu, K, CurrentPhase using 2TBN
-    #unique_lambda = sorted(data_bn['Lambda_tprev'].unique())
     unique_mu = sorted(data_bn['Mu_tprev'].unique())
-    #unique_k = [float(x) for x in sorted(data_bn['K_tprev'].unique())] # read as floats
     unique_phases = [float(x) for x in sorted(data_bn['CurrentPhase_tprev'].unique())]
 
     # Alpha and Theta are present in the 2TBN (one value per run). Collect their unique values.
@@ -188,9 +186,7 @@ def construct_dbn(bn_file,
 
     # Create the variables of the DBN (naming: suffix "0" for previous slice, suffix "t" for current slice)
     # Previous time-slice variables
-    #lambda_tprev = gm.NumericalDiscreteVariable("Lambda0", "Arrival rate (t - 1)", unique_lambda)
     mu_tprev = gm.NumericalDiscreteVariable("Mu0", "Service rate (t - 1)", unique_mu)
-    #k_tprev = gm.NumericalDiscreteVariable("K0", "Erlang phases (t - 1)", unique_k)
     phase_tprev = gm.NumericalDiscreteVariable("CurrentPhase0", "Current phase (t - 1)", unique_phases)
     ql_tprev = gm.RangeVariable("QueueLength0", "Queue length (t - 1)", 0, max_ql)
 
@@ -199,9 +195,7 @@ def construct_dbn(bn_file,
     theta_tprev = gm.NumericalDiscreteVariable("Theta0", "Theta (t - 1)", unique_theta)
 
     # Current time-slice variables
-    #lambda_t = gm.NumericalDiscreteVariable("Lambdat", "Arrival rate (t)", unique_lambda)
     mu_t = gm.NumericalDiscreteVariable("Mut", "Service rate (t)", unique_mu)
-    #k_t = gm.NumericalDiscreteVariable("Kt", "Erlang phases (t)", unique_k)
     phase_t = gm.NumericalDiscreteVariable("CurrentPhaset", "Current phase (t)", unique_phases)
     ql_t = gm.RangeVariable("QueueLengtht", "Queue length (t)", 0, max_ql)
 
@@ -224,9 +218,6 @@ def construct_dbn(bn_file,
     dbn.addArc(ql0, qlt)
     dbn.addArc(phase0, qlt)
     dbn.addArc(mut, qlt)
-    # # i_t  <- i_{t-1}, Lambda_t
-    # dbn.addArc(phase0, phaset)
-    # dbn.addArc(lambdat, phaset)
 
     # i_t  <- i_{t-1}, Alpha_t, Theta_t
     dbn.addArc(phase0, phaset)
@@ -235,13 +226,6 @@ def construct_dbn(bn_file,
 
     # Print the DBN
     logger.debug(f"DBN: {dbn}")
-
- 
-    # # Step 1. Rename the columns of the 2TBN dataframe to match the DBN variable names
-    # data_bn.columns = [
-    #     "Lambda0", "Mu0", "K0", "CurrentPhase0", "QueueLength0",
-    #     "Lambdat", "Mut", "Kt", "CurrentPhaset", "QueueLengtht"
-    # ]
 
     # Step 1. Ensure Alphat/Thetat exist (they are identical to Alpha/Theta because static per run),
     # then rename/reorder the 2TBN dataframe columns to match the DBN variable names.
@@ -266,14 +250,10 @@ def construct_dbn(bn_file,
     ]
 
     # Step 2. Set the domain of all relevant variables in the pandas dataframes
-    #data_bn["Lambda0"] = pd.Categorical(data_bn["Lambda0"], categories=unique_lambda)
     data_bn["Mu0"] = pd.Categorical(data_bn["Mu0"], categories=unique_mu)
-    #data_bn["K0"] = pd.Categorical(data_bn["K0"], categories=unique_k)
     data_bn["CurrentPhase0"] = pd.Categorical(data_bn["CurrentPhase0"], categories=unique_phases)
     data_bn["QueueLength0"] = pd.Categorical(data_bn["QueueLength0"], categories=range(0, max_ql + 1))
-    #data_bn["Lambdat"] = pd.Categorical(data_bn["Lambdat"], categories=unique_lambda)
     data_bn["Mut"] = pd.Categorical(data_bn["Mut"], categories=unique_mu)
-    #data_bn["Kt"] = pd.Categorical(data_bn["Kt"], categories=unique_k)
     data_bn["CurrentPhaset"] = pd.Categorical(data_bn["CurrentPhaset"], categories=unique_phases)
     data_bn["QueueLengtht"] = pd.Categorical(data_bn["QueueLengtht"], categories=range(0, max_ql + 1))
 
@@ -287,9 +267,7 @@ def construct_dbn(bn_file,
     for col, cats in [
         ("Alpha0", unique_alpha),
         ("Theta0", unique_theta),
-        #("Lambda0", unique_lambda),
         ("Mu0", unique_mu),
-        #("K0", unique_k),
         ("CurrentPhase0", unique_phases),
         ("QueueLength0", range(0, max_ql + 1))
     ]:
@@ -297,7 +275,6 @@ def construct_dbn(bn_file,
             data_dbn[col] = pd.Categorical(data_dbn[col], categories=cats)
         else:
             logger.debug(f"Column {col} not present in data_dbn")
-
 
     # step 3: CPD for initial simulation variables
     initial_vars = ["QueueLength0", "CurrentPhase0", "Alpha0", "Theta0", "Mu0"]
@@ -308,7 +285,6 @@ def construct_dbn(bn_file,
     simulation_vars = ["CurrentPhaset", "Alphat", "Thetat", "Mut"]
     for var in simulation_vars:
         learn_cpd_using_crosstab(dbn, var, data_bn, logger)
-
     
     # create figures dir once
     project_root = Path.cwd()
@@ -517,3 +493,110 @@ if __name__ == "__main__":
                       exp_no=time_discretization_experiment)
         end = time.time()
         logger.info(f"Time taken to construct the Hypoexp M1 DBN: {end - start: .2f} seconds")
+
+
+#     from pathlib import Path
+# import numpy as np
+# import matplotlib.pyplot as plt
+# from inference import param_val_to_str
+
+# # ---------- user parameters ----------
+# figures_dir = Path("figures")
+# figures_dir.mkdir(exist_ok=True)
+
+# bif_crosstab = "data/discrete_time/dbn_hypoexpm1_exp11_crosstab.bif"
+# bif_tml = "data/discrete_time/dbn_hypoexpm1_exp11.bif"
+# mu_value = 0.7
+# mu_label = param_val_to_str(mu_value)
+# phase_value = 5
+# Lt_values = list(range(17))  # QueueLength0 = 0..16
+
+# # ---------- load networks ----------
+# dbn_crosstab = gm.loadBN(bif_crosstab)
+# dbn_tml = gm.loadBN(bif_tml)
+
+# # ---------- styling ----------
+# plt.rcParams.update({
+#     "text.usetex": False,
+#     "font.family": "serif",
+#     "font.serif": ["Computer Modern"],
+# })
+
+# # 16 visually distinct colors
+# colors = plt.cm.viridis(np.linspace(0, 1, 16))
+
+# # ---------- plotting ----------
+# fig, axes = plt.subplots(1, 2, figsize=(40, 9), sharey=True)  # wider, less tall
+
+# for ql0, color in zip(Lt_values, colors):
+#     label = rf"$L^{{(j)}}={ql0}$" # FIXED legend
+
+#     # Cross-tab CPT
+#     cpt_cross = dbn_crosstab.cpt("QueueLengtht")[{
+#         'Mut': mu_label,
+#         'CurrentPhase0': str(phase_value),
+#         'QueueLength0': ql0
+#     }]
+#     axes[0].plot(
+#         range(len(cpt_cross)),
+#         cpt_cross,
+#         color=color,
+#         label=label,
+#         linewidth=2.8,
+#         marker='o',
+#         markersize=6,
+#         markeredgecolor='black',
+#         markeredgewidth=0.3
+#     )
+
+#     # TML CPT
+#     cpt_tml = dbn_tml.cpt("QueueLengtht")[{
+#         'Mut': mu_label,
+#         'CurrentPhase0': str(phase_value),
+#         'QueueLength0': ql0
+#     }]
+#     axes[1].plot(
+#         range(len(cpt_tml)),
+#         cpt_tml,
+#         color=color,
+#         label=label,
+#         linewidth=2.8,
+#         marker='o',
+#         markersize=6,
+#         markeredgecolor='black',
+#         markeredgewidth=0.3
+#     )
+
+# # ---------- axis labels and styling ----------
+# for ax in axes:
+#     ax.set_xlabel(r"$L^{(j+1)}$", fontsize=36)
+#     ax.set_ylabel(r"$P(L^{(j+1)} \mid S^{(j)}, L^{(j)}, \mu)$", fontsize=36, labelpad=15)
+#     ax.set_xticks(range(max(Lt_values) + 1))
+#     ax.set_xticklabels(range(max(Lt_values) + 1), fontsize=30)
+#     ax.set_yticks(np.linspace(0, 1, 6))
+#     ax.set_yticklabels([f"{y:.2f}" for y in np.linspace(0, 1, 6)], fontsize=30)
+#     ax.tick_params(axis='y', labelsize=30)
+#     ax.grid(False)
+
+# axes[1].yaxis.set_tick_params(labelleft=True)
+
+# # ---------- shared legend below ----------
+# handles, labels = axes[0].get_legend_handles_labels()
+# fig.legend(
+#     handles, labels,
+#     loc='lower center',
+#     ncol=9,
+#     frameon=False,
+#     fontsize=28,  # increased
+#     markerscale=1.5,
+#     bbox_to_anchor=(0.5, -0.12)  # pulled up
+# )
+
+# # ---------- adjust spacing ----------
+# plt.subplots_adjust(wspace=0.25, bottom=0.25, top=0.95)
+
+# # ---------- save ----------
+# fname = f"experiment11_mu{mu_value}_phase{phase_value}.pdf"
+# plt.savefig(figures_dir / fname, bbox_inches="tight")
+# plt.close()
+# print(f"Saved figure at {figures_dir / fname}")

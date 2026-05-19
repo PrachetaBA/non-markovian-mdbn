@@ -7,9 +7,10 @@ import os
 from math import ceil, sqrt
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.stats import gamma
+from scipy.stats import gamma, gaussian_kde
 from pathlib import Path
 import yaml
+from approx_hypoexp_NLP import hypoexp_pdf
 
 
 def gamma_hypoexponential_approximation(alpha, theta): 
@@ -65,25 +66,43 @@ def plot_gamma_vs_hypoexp(alpha, theta, phase_rates, experiment_no, num_samples=
     # gamma dist pdf
     shape = alpha
     scale = theta
-    x = np.linspace(0, alpha * theta * 5, 1000)
+    #x = np.linspace(0, alpha * theta * 5, 1000)
+    # Generate samples
+    samples = np.random.gamma(shape=alpha, scale=theta, size=num_samples)
+    x_max = np.percentile(samples, 99.5)  # only show 95% of the mass
+    x = np.linspace(0, x_max, 1000)
     gamma_pdf = gamma.pdf(x, a=shape, scale=scale)
 
-    # hypoexp samples and approximate pdf
+    #hypo_pdf = hypoexp_pdf(x, np.array(phase_rates))
     hypo_samples = np.sum([np.random.exponential(1.0 / rate, size=num_samples) for rate in phase_rates], axis=0)
-    hist_vals, bin_edges = np.histogram(hypo_samples, bins=bins, density=True)
-    bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
+    hypo_samples = hypo_samples[hypo_samples <= x_max]
+    hypo_pdf = gaussian_kde(hypo_samples)(x)
 
-    # plot the distributions together and save the figure
+    # --- Plot ---
     plt.figure(figsize=(8, 5))
-    plt.plot(x, gamma_pdf, label="Gamma PDF", color="blue", lw=2)
-    plt.plot(bin_centers, hist_vals, label="Hypoexp Approx (samples)", color="orange", lw=2, alpha=0.7)
-    plt.title(f"Gamma vs Hypoexponential Approximation (alpha={alpha}, theta={theta})")
-    plt.xlabel("Time")
-    plt.ylabel("Probability Density")
-    plt.legend()
-    plt.grid(True)
+    plt.plot(x, gamma_pdf, label="Gamma", color="#0072B2", lw=2)  # Blue
+    #plt.plot(bin_centers, hist_vals, label="GED", color="#D62E00", lw=2)  # Strong red      
+    plt.plot(x, hypo_pdf, label="GED", color="#D62E00", lw=2)
+
+    # --- Labels in LaTeX with bigger fonts ---
+    plt.xlabel(r"$X$", fontsize=25)       # X instead of x, larger font
+    plt.ylabel(r"$P(X)$", fontsize=25)    # P(X) instead of P(x), larger font
+
+    # --- Legend ---
+    plt.legend(fontsize=24)
+
+    # --- Ticks with bigger fonts ---
+    plt.xticks(fontsize=25)
+    plt.yticks(fontsize=25)
+
+    # --- Remove grid ---
+    plt.grid(False)
+
+    # --- Save figure ---
     os.makedirs("figures", exist_ok=True)
-    plt.savefig(f'figures/gamma_vs_hypoexp_exp{experiment_no}_alpha_{alpha}_theta_{theta}.png')
+    plt.tight_layout()
+    plt.savefig(f'figures/gamma_vs_hypoexp_exp{experiment_no}_alpha_{alpha}_theta_{theta}.pdf')
+    plt.close()
 
 
 def compute_cross_entropy(alpha, theta, phase_rates, num_gamma_samples=100000, bins=100, epsilon=1e-12):
@@ -129,16 +148,6 @@ def create_hypoexp_sim_config(query_workload):
         input_config_data = yaml.safe_load(f)
     input_config = input_config_data.get(f"experiment_{input_experiment_number}", None)
     
-    # Step 2: Approx gamma with hypoexp, plot both distributions and compute CE
-    # phase_rates_list = []
-    # for alpha in input_config['alphas']:
-    #     for theta in input_config['thetas']:
-    #         phase_rates = gamma_hypoexponential_approximation(alpha, theta)
-    #         plot_gamma_vs_hypoexp(alpha, theta, phase_rates, input_experiment_number)
-    #         cross_entropy = compute_cross_entropy(alpha, theta, phase_rates)
-    #         print(f"Cross-entropy for alpha={alpha}, theta={theta}: {cross_entropy}")
-    #         phase_rates_list.append(phase_rates)
-    # 
     arrival_distributions = []
     for alpha in input_config['alphas']:
         for theta in input_config['thetas']:
@@ -166,16 +175,6 @@ def create_hypoexp_sim_config(query_workload):
     else:
         experiment_number = 1
 
-    # Step 5: Append top the yaml file
-    # config[f"experiment_{experiment_number}"] = {
-    #     "phase_rates": phase_rates_list,
-    #     "service_rates": input_config['service_rates'],
-    #     "runs": input_config.get('runs', 100),
-    #     "simulation_end": input_config.get('simulation_end', 1000),
-    #     "varying_iql": input_config.get('varying_iql', False),
-    #     "max_iql": input_config.get('max_iql', 0),
-    #     "output_folder": input_config.get('output_folder', 'results/')
-    # }
     config[f"experiment_{experiment_number}"] = {
         "arrival_distributions": arrival_distributions,
         "service_rates": input_config['service_rates'],

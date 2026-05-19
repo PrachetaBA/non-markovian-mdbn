@@ -60,8 +60,6 @@ def construct_dbn_hypoexp_m1_data(input_filename, output_filename, sampling_rate
         theta_run = d['Theta'].values[0]
         mu_run = d['Mu'].values[0]
         k_run = len(phase_rates)
-
-        #time_series = []
         time_series = [alpha_run, theta_run]
 
         # Start at time t = 0.0
