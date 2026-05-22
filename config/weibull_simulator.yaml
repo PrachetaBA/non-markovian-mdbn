@@ -1,0 +1,15 @@
+experiment_1: # weibull experiments with worksload α ∈ {0.9,1.2},β ∈ {1.5,2.0},μ ∈ {0.8,1.0}.
+  WB_SHAPES:
+    - 0.9
+    - 1.2   
+  WB_SCALES:
+    - 1.5
+    - 2.0
+  service_rates:
+    - 0.8   
+    - 1.0   
+  runs: 1000
+  simulation_end: 20
+  varying_iql: true
+  max_iql: 5
+  output_folder: 'data/simulation'
