@@ -1,0 +1,15 @@
+experiment_1: # beta experiments with worksload α ∈ {2.5,1.5},β ∈ {2.5,4.5},μ ∈ {4.5,5.5}.
+  B_ALPHAS:
+    - 2.5
+    - 1.5   
+  B_BETAS:
+    - 2.5
+    - 4.5
+  service_rates:
+    - 4.5   
+    - 5.5   
+  runs: 1000
+  simulation_end: 8
+  varying_iql: true
+  max_iql: 5
+  output_folder: 'data/simulation'

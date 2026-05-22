@@ -1,0 +1,4 @@
+experiment_1:
+  beta_hypoexp_m1_time_series_experiment: 1
+  time_discretization_folder: "discrete_time"
+  sampling_interval: 0.01

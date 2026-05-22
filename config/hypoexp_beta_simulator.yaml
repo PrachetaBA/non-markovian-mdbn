@@ -1,0 +1,32 @@
+experiment_1: # hypoexp config for beta exp with worksload α ∈ {2.5,1.5},β ∈ {2.5,4.5},μ ∈ {4.5,5.5}. 
+  arrival_distributions:
+  - alpha: 2.5
+    beta: 2.5
+    phase_rates:
+    - 5.999227109169847
+    - 5.999227109169847
+    - 5.999227109169847
+  - alpha: 2.5
+    beta: 4.5
+    phase_rates:
+    - 8.391565313499703
+    - 8.391565313499703
+    - 8.391565313499703
+  - alpha: 1.5
+    beta: 2.5
+    phase_rates:
+    - 5.351963502433506
+    - 5.351963502433506
+  - alpha: 1.5
+    beta: 4.5
+    phase_rates:
+    - 8.00306130238088
+    - 8.00306130238088
+  max_iql: 5
+  output_folder: data/simulation
+  runs: 1000
+  service_rates:
+  - 4.5
+  - 5.5
+  simulation_end: 8
+  varying_iql: true
