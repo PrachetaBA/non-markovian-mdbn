@@ -1,0 +1,6 @@
+experiment_1:
+  time_discretization_experiment: 1
+  dbn_output_folder: "discrete_time"
+  maximum_ql: 5
+  expt_name: "hypoexpm1_contruct_dbn_exp_1"
+  use_crosstab: False

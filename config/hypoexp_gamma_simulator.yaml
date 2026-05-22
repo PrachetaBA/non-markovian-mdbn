@@ -1,0 +1,38 @@
+experiment_1: # hypoexp config for gamma exp with worksload α ∈ {2.7,4.3},β ∈ {0.6,1.2},μ ∈ {0.7,0.9}.
+  arrival_distributions:
+  - alpha: 2.7
+    phase_rates:
+    - 1.8518518518518516
+    - 1.3150037989691932
+    - 3.12944064547525
+    theta: 0.6
+  - alpha: 2.7
+    phase_rates:
+    - 0.9259259259259258
+    - 0.6575018994845966
+    - 1.564720322737625
+    theta: 1.2
+  - alpha: 4.3
+    phase_rates:
+    - 1.9379844961240313
+    - 1.9379844961240313
+    - 1.9379844961240313
+    - 1.1831787924691897
+    - 5.3527689199491135
+    theta: 0.6
+  - alpha: 4.3
+    phase_rates:
+    - 0.9689922480620157
+    - 0.9689922480620157
+    - 0.9689922480620157
+    - 0.5915893962345948
+    - 2.6763844599745568
+    theta: 1.2
+  max_iql: 5
+  output_folder: data/simulation
+  runs: 1000
+  service_rates:
+  - 0.7
+  - 0.9
+  simulation_end: 20
+  varying_iql: true
