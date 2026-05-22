@@ -1,8 +1,54 @@
-## Overview
+# erlang-queue-mdbn
 
-This branch is used for all experiments related to Markovian queuing network example as described in the journal paper. The general workflow is to first generate training data using the specified event-based simulator `simulator.py`. Next, we extract 2-TBN style and time series style data using the scripts `subsampling_2tbn.py` and `subsampling_dbn.py`. We construct the corresponding DBN using `construct_dbn.py` and run inference using `inference.py`. Add the details of the experiment in the evidence file under `data/evidence`. Generate the ground truth data using `simulator_interventions.py`. Finally we use `utils/compare_qnetwork_dbn.py` to generate the figures and comparison plots. 
+This repository contains research code for causal metamodeling of queueing systems using modular dynamic Bayesian networks (MDBNs). It implements a pipeline for simulating queues, approximating non-Markovian arrival distributions with phase-type / hypoexponential representations, constructing discrete-time DBNs, and answering probabilistic and causal queries.
 
-The detailed instructions to run these scripts and other experiments is specified [here](/README_detailed.md). 
+The code supports experiments for multiple queueing branches:
+- `src_gamma/`, `src_beta/`, `src_weibull/` — non-Markovian experiments using hypoexponential approximations of Gamma, Beta, and Weibull arrivals
 
-## Local configuration
-Used conda environment mdbn-pyagrum, and the corresponding `environment.yml` file.
+This repo is aligned with the WSC 2026 paper "Extending Causal Metamodeling to a Non-Markovian Queue" (Amaranath, Bhide, Jensen, and Haas).
+
+## Quick start
+
+1. Create the conda environment:
+   ```bash
+   conda env create -f environment.yml
+   conda activate mdbn-pyagrum
+   ```
+
+2. Generate hypoexponential yaml, for example Gamma
+   ```bash
+   python src_gamma/gamma_to_hypoexp.py -c config/gamma_simulator.yaml -e 1
+   ```
+
+3. Run simulation, for example Gamma/M/1 queue:
+   ```bash
+   python src_gamma/simulator.py -c config/hypoexp_gamma_simulator.yaml -e 1
+   ```
+
+4. Generate discretized data:
+   ```bash
+   python src_gamma/subsampling_dbn.py -c config/gamma_hypoexp_time_discretization.yaml -e 1 -s config/hypoexp_gamma_simulator.yaml
+   python src_gamma/subsampling_2tbn.py -c config/gamma_hypoexp_time_discretization.yaml -e 1 -s config/hypoexp_gamma_simulator.yaml
+   ```
+
+5. Construct the DBN:
+   ```bash
+   python src_gamma/construct_dbn.py -c config/gamma_hypoexp_construct_dbn.yaml -e 1 -s config/hypoexp_gamma_simulator.yaml -t config/gamma_hypoexp_time_discretization.yaml
+   ```
+
+5. Run inference on the constructed DBN:
+   ```bash
+   python src_gamma/inference.py -c config/hypoexp_query.json -e 1 -d <dbn_name> -t config/gamma_hypoexp_time_discretization.yaml
+   ```
+
+6. For exact script details and configuration references, see `README_detailed.md`.
+
+## Repository structure
+
+- `config/` — experiment configs for simulation, time discretization, DBN construction, and query workloads.
+- `src_gamma/`, `src_beta/`, `src_weibull/` — distribution-specific pipelines.
+- `cluster/` — SLURM wrapper scripts for running the pipeline on cluster nodes.
+- `data/` — generated simulation and ground-truth data.
+- `output/` — query results from inference.
+- `results/` — additional evaluation outputs.
+- `figures/` — generated plots and comparison figures.

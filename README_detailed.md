@@ -1,121 +1,118 @@
-## Experiments 
-The following scripts construct and test a Markovian queueing network with a parent queue that probabilistically routes jobs to two child queues. The configurations for all experiments are managed in the `configs` folder. All scripts accept two arguments: the configuration file and the experiment number. The user can also specify a '-v' option for verbose print statements.
+## Detailed repository and workflow reference
 
-1. Update the configuration file to generate data using the Markovian queueing simulator: `markovian_simulator.yaml`. The settings are explained below. Each experiment is labeled `experiment_<experiment_number>`. 
+This repository implements a queueing simulation and DBN metamodel pipeline for non-Markovian queueing systems. It is aligned with the paper on extending MDBNs to non-Markovian queues by approximating general arrival distributions with phase-type / hypoexponential models. This repo implements that approach for Gamma, Beta and Weibull arrival processes.
 
-    1.1. `experiment_design`: full-factorial, random-sampling or random-sampling-stable
 
-    1.2 `arrival_rates`: Arrival rates, for full-factorial specify all the possible arrival rates as a list. In case we specify min and max, the first item in the list corresponds to min and the second max. 
+### Root folders
 
-    1.3 `parent_service_rates`: Service rates for the parent.  
+- `config/` — YAML and JSON configuration files for simulation, time discretization, DBN construction, and query workloads.
+- `src_gamma/` — G/M/1 experiments with Gamma arrivals and hypoexponential approximation.
+- `src_beta/` — G/M/1 experiments with Beta arrivals and hypoexponential approximation.
+- `src_weibull/` — G/M/1 experiments with Weibull arrivals and hypoexponential approximation.
+- `cluster/` — SLURM wrapper scripts for cluster execution.
+- `data/`, `output/`, `results/`, `figures/` — stored generated data, inference outputs, evaluation results, and plots.
 
-    1.4 `child1_service_rates`: Service rates for child 1 queue.
+## High-level experiment pipeline
 
-    1.5 `child2_service_rates`: Service rates for child 2 queue. 
+The standard workflow for each distribution branch is:
 
-    1.6 `routing_probability`: Routing probability to child 1 queue (List possible values or specify min and max)
+1. Generate simulation data from `src_*/simulator.py` using a branch-specific config file.
+2. Convert or approximate non-Markovian arrivals using phase-type / hypoexponential representation if needed.
+3. Discretize the simulation output into a time-series or 2-TBN dataset using `src_*/subsampling_2tbn.py` and/or `src_*/subsampling_dbn.py`.
+4. Construct the DBN from discretized data using `src_*/construct_dbn.py`.
+5. Run queries on the DBN with `src_*/inference.py`.
+6. Optionally compare DBN inference to ground truth via Monte Carlo or intervention-enabled simulation.
 
-    1.7 `replications`: Number of replications for each experimental design point
+## `config/` files
 
-    1.8 `configurations`: Number of possible design points (for random-sampling and random-sampling-stable only)
+Key configuration files in `config/` include:
 
-    1.9 `simulation_end`: Simulation end time
+- `gamma_simulator.yaml`, `weibull_simulator.yaml`, `beta_simulator.yaml` — Original arrival distribution simulation settings.
+- `hypoexp_gamma_simulator.yaml` — Gamma-to-hypoexp simulation settings.
+- `hypoexp_weibull_simulator.yaml` — Weibull-to-hypoexp simulation settings.
+- `hypoexp_beta_simulator.yaml` — Beta-to-hypoexp simulation settings.
+- `gamma_hypoexp_time_discretization.yaml`, `beta_hypoexp_time_discretization.yaml`, `weibull_hypoexp_time_discretization.yaml` — time discretization settings.
+- `gamma_hypoexp_construct_dbn.yaml`, `beta_hypoexp_construct_dbn.yaml`, `weibull_hypoexp_construct_dbn.yaml` — DBN construction settings.
+- `gamma_query_workload_exp-1.json` , `beta_query_workload_exp-1.json`, `weibull_query_workload_exp-1.json`, etc. — query workloads for inference.
 
-    1.10 `varying_iql`: Flag to specify whether initial queue length varies 
+The configs use these keys:
+- `runs` — number of simulation runs
+- `simulation_end` — simulation end time
+- `varying_iql` — should starting queuelength vary during simulations
+- `max_iql` — maximum queuelength
+- distribution-specific keys such as `arrival_distributions`, `ALPHAS`, `B_BETAS`, `phase_rates`, etc.
+- `output_folder` — where to store the results
+- `service_rates` — service rate follows expenontial distribution
 
-    1.11 `max_iql`: If varying_iql = True, specify the maximum initial queue length 
 
-    1.12 `output_folder`: Specify the location where the time series event data is stored. 
+## Distribution-specific source branches
 
-    Running script on cluster: `cluster/scripts/gen_qnetwork_simdata.py`. 
+### `src_gamma/`
 
-    Running script locally: `src/mm1_qnetwork_simulator.py`.
+This is the main branch for Gamma arrival experiments. It includes the full pipeline.
 
-2. Extract the time-sampled data sets from the continuous time simulator data. The configuration file is `time_discretization.yaml`. The parameters of the config are explained below. Every experiment is denoted by the key `experiment_<experiment_number>`. 
+Scripts:
+- `simulator.py` — generate simulation data using `config/hypoexp_gamma_simulator.yaml`.
+- `gamma_to_hypoexp.py` — convert Gamma parameters into hypoexponential phase-rates.
+- `subsampling_2tbn.py` — produce 2-TBN training data.
+- `subsampling_dbn.py` — produce DBN training data.
+- `construct_dbn.py` — construct the DBN.
+- `inference.py` — run inference on the constructed DBN.
+- `compute_montecarlo_gt.py` — compute Monte Carlo ground truth.
+- `simulator_gamma_interventions.py`, `simulator_hypoexp_interventions.py` — support intervention-based ground-truth data.
 
-    2.1 `time_series_experiment`: The experiment number of the data generation procedure as explained in Step 1. 
+### `src_beta/`
 
-    2.2 `time_discretization_folder`: The location of the discretized time data. 
+This branch mirrors the Gamma pipeline for Beta arrival distributions.
 
-    2.3 `sampling_interval`: The sampling interval used for time discretization.
+Scripts:
+- `simulator.py` — generate Beta simulation data.
+- `beta_to_hypoexp.py` — convert Beta parameters into hypoexponential phase-rates.
+- `subsampling_2tbn.py`, `subsampling_dbn.py` — discretize simulation output.
+- `construct_dbn.py` — build the DBN.
+- `inference.py` — run inference.
+- `compute_montecarlo_gt.py` — compute ground truth.
+- `simulator_beta_interventions.py`, `simulator_hypoexp_interventions.py` — intervention-enabled simulation.
 
-    Running script on cluster: `cluster/scripts/gen_discrete_simdata.py`. 
-    
-    Running script locally: `subsampling_discrete_2tbn.py` and `subsampling_discrete_timeseries.py`. 
+### `src_weibull/`
 
-3. Construct the DBN with a specific structure as defined in `construct_dbn_mm1_qnetwork.py`. The structure of the DBN is manually specified in this file. The configuration file for the rest of parameters is `markovian_qnetwork_dbns.yaml`. 
+This branch mirrors the Gamma/Beta pipeline for Weibull arrival distributions.
 
-    3.1 `time_discretization_experiment`: The experiment number of the time discretization procedure as referenced in Step 2. 
+Scripts:
+- `simulator.py` — generate Weibull simulation data.
+- `weibull_to_hypoexp.py` — convert Weibull parameters into hypoexponential phase-rates.
+- `subsampling_2tbn.py`, `subsampling_dbn.py` — discretize simulation output.
+- `construct_dbn.py` — build the DBN.
+- `inference.py` — run inference.
+- `compute_montecarlo_gt.py` — compute ground truth.
+- `simulator_weibull_interventions.py`, `simulator_hypoexp_interventions.py` — intervention-enabled simulation.
 
-    3.2 `dbn_output_folder`: Location of the output files for the constructed DBN
 
-    3.3 `dbn_unique_id`: Unique identifier for the DBN (structures are manually specified in the script)
+## Key script usage patterns
 
-    3.4 `maximum_qlength`: Value for the maximum qlength for all queue length variables. 
+The main scripts in each branch generally use the same CLI pattern:
 
-    Running script locally: `src/construct_dbn_mm1_qnetwork.py`. 
-    
-    Running script on cluster: `cluster/scripts/construct_dbn.py` 
+- `python src_*/simulator.py -c <config_file> -e <experiment_number> [-v]`
+- `python src_*/subsampling_2tbn.py -c <time_disc_config> -e <experiment_number> [-v] -s <sim_config>`
+- `python src_*/construct_dbn.py -c <dbn_config> -e <experiment_number> [-v] -s <sim_config> -t <time_disc_config>`
+- `python src_*/inference.py -c <query_config> -e <experiment_number> [-v] -t <time_disc_config> -d <dbn_name>`
 
-4. Specify the details of each query in the configuration file `inference_queries.yaml`. Each query is referenced by `experiment_<experiment_number>`. The details are listed below.
+The branch-specific config files are stored in `config/`.
 
-    4.1 `start_parameters`: The parameters that the network is initialized to.  
-        
-        4.1.1 `Lambdap`: Parent arrival rate
+## Output folders
 
-        4.1.2 `Mup`: Parent service rate 
+Typical output locations are:
+- simulation CSV files in `data/simulation`
+- discretized DBN input in `data/discrete_time`
+- posterior inference outputs in `output/queries`
+- ground-truth distributions in `data/queries_gt`
 
-        4.1.3 `Mufc`: Child 1 service rate 
 
-        4.1.4 `Musc`: Child 2 service rate
+## Cluster scripts
 
-        4.1.5 `Rp`: Routing probability to child 1 
+The `cluster/` directory contains wrappers for batch execution of the pipeline on cluster nodes. Example directories include:
+- `cluster/beta_scripts/`
+- `cluster/gamma_scripts/`
+- `cluster/weibull_scripts/`
 
-        4.1.6 `Lp`: Initial state of the parent system
-
-        4.1.7 `Lfc`: Initial state of the child 1 system
-
-        4.1.8 `Lsc`: Initial state of the child 2 system 
-
-    4.2 `inference_algorithm`: The algorithm that will be used for inference. Can be one of `LoopyBeliefPropagation`, `LazyPropagation`, `VariableElimination` ... (add the others here)
-
-    4.3 `interventions`: The list of interventions (or evidence) that will be provided to the model. Each intervention has the following keys. 
-
-        4.3.1 `intervention_start`: Start time of the intervention
-
-        4.3.2 `intervention_variable`: Name of the variable to be intervened on. Can be one of `Lambdap, Mup, Mufc, Musc, Rp, Lp, Lfc, Lsc`. 
-
-        4.3.3 `intervention_value`: The value to set the variable to. 
-
-        4.3.4 `intervention_type`: The type of possible interventions. Can be one of `conditional, parameter_intervention, additive, subtractive, interventional`
-
-    4.4 `query_variable`: The variable that is queried
-
-    4.5 `query_time`: The time at which the query variables probability distribution is requested. 
-
-    4.6 `dbn_experiment_number`: The experiment number referencing the construction of the DBN as in Step 3. 
-
-    4.7 `results_folder`: Location where the posterior distribution is stored.
-
-    4.8 `gt_replications`: The number of replications to compute the ground truth
-
-    4.9 `gt_results_folder`: Location of the ground truth probability distribution 
-
-    4.10 `figures_folder`: Location where the figures comparing DBN and ground truth is stored. 
-
-    Local scripts: 
-
-    - Inference on DBN: `src/inference_dbn_mm1_qnetwork.py` 
-    
-    - Ground truth: `src/mm1_qnetwork_simulator_interventions.py`
-
-    - Comparing DBN results with ground truth: `utils/compare_mm1_qnetwork_dbn_gt.py`. 
-
-    Cluster scripts: 
-
-    - Inference on DBN: `cluster/scripts/inference_dbn.sh`
-
-    - Ground truth: `cluster/scripts/gen_qnetwork_gt.sh`
-
-    - Comparing DBN results with ground truth: `cluster/scripts/compare_dbn_gt.sh`
-
+These scripts typically load a conda environment and run the Python branch scripts with the provided config file and experiment number.
