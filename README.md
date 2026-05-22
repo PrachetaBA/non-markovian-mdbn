@@ -5,7 +5,7 @@ This repository contains research code for causal metamodeling of queueing syste
 The code supports experiments for multiple queueing branches:
 - `src_gamma/`, `src_beta/`, `src_weibull/` — non-Markovian experiments using hypoexponential approximations of Gamma, Beta, and Weibull arrivals
 
-This repo is aligned with the WSC 2026 paper "Extending Causal Metamodeling to a Non-Markovian Queue" (Amaranath, Bhide, Jensen, and Haas).
+This repo is aligned with the paper "Extending Causal Metamodeling to a Non-Markovian Queue" (Amaranath, Bhide, Jensen, and Haas).
 
 ## Quick start
 
