@@ -3,8 +3,8 @@
 #SBATCH --mem=4196  # Requested Memory
 #SBATCH -p cpu      # Partition
 #SBATCH -t 3:30:00  # Job time limit (30 minutes)
-#SBATCH -o ../logs/gen_qnetwork_gt/job-%j.out
-#SBATCH -e ../logs/gen_qnetwork_gt/job-%j.err
+#SBATCH -o ../logs/gen_qnetwork_gt_get_runtime/job-%j.out
+#SBATCH -e ../logs/gen_qnetwork_gt_get_runtime/job-%j.err
 
 module load conda/latest
 conda activate erm1-mdbn

@@ -190,100 +190,10 @@ def create_hypoexp_sim_config(query_workload):
         yaml.dump(config, f)
 
 
-def create_hypoexp_inference_config(query_workload):
-    """Function creates the HypoExp/M/1 inference config from a Gamma-based query config."""
-
-    # Step 1: Resolve paths and extract config
-    project_root = Path(__file__).resolve().parents[1]
-    config_dir = project_root / "config"
-    config_dir.mkdir(parents=True, exist_ok=True)
-    input_config_file = project_root / query_workload.get('config_file', None)
-    input_experiment_number = query_workload.get('experiment_number', None)
-    output_path = config_dir / query_workload.get('output_file', 'hypoexp_query.json')
-
-    with open(input_config_file, "r") as f:
-        input_config_data = json.load(f)
-    input_config = input_config_data.get(f"experiment_{input_experiment_number}", None)
-    if input_config is None:
-        raise ValueError(f"Experiment {input_experiment_number} not found in input config")
-
-    # Step 2: Process start parameters
-    start_params = input_config.get("start_parameters", {}).copy()
-    alpha = start_params.pop("alpha", None)
-    theta = start_params.pop("theta", None)
-    if alpha is None or theta is None:
-        raise ValueError("Both alpha and theta must be present in start_parameters")
-
-    phase_rates = gamma_hypoexponential_approximation(alpha, theta)
-    start_params["phase_rates"] = phase_rates
-
-    # Step 3: Process interventions
-    GAMMA_PARAMS = {"alpha", "theta"}
-    interventions = input_config.get("interventions", [])
-    new_interventions = []
-
-    for intervention in interventions:
-        new_intervention = intervention.copy()
-        var = intervention.get("intervention_variable")
-
-        if var in GAMMA_PARAMS:
-            # get current values
-            current_alpha = alpha
-            current_theta = theta
-
-            if var == "alpha":
-                current_alpha = intervention.get("intervention_value")
-            elif var == "theta":
-                current_theta = intervention.get("intervention_value")
-
-            if current_alpha is None or current_theta is None:
-                raise ValueError("Cannot compute phase_rates: missing alpha or theta")
-
-            new_phase_rates = gamma_hypoexponential_approximation(current_alpha, current_theta)
-
-            # replace intervention
-            new_intervention["intervention_variable"] = "phase_rates"
-            new_intervention["intervention_value"] = new_phase_rates
-
-        new_interventions.append(new_intervention)
-
-    # Step 4: Construct output config
-    output_config = input_config.copy()
-    output_config["start_parameters"] = start_params
-    output_config["interventions"] = new_interventions
-
-    # Step 5: Load existing output file
-    try:
-        with open(output_path, "r") as f:
-            config = json.load(f) or {}
-    except FileNotFoundError:
-        config = {}
-
-    # Step 6: Get next experiment number
-    if config:
-        exp_nums = [int(k.split("_")[1]) for k in config.keys() if k.startswith("experiment_")]
-        experiment_number = max(exp_nums) + 1
-    else:
-        experiment_number = 1
-
-    # Step 7: Append and write
-    config[f"experiment_{experiment_number}"] = output_config
-
-    with open(output_path, "w") as f:
-        json.dump(config, f, indent=2)
-
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Convert Gamma configs to Hypoexponential configs for simulation or inference."
     )
-    
-    parser.add_argument("--mode",
-                        "-m",
-                        choices=["simulate", "infer"],
-                        required=True,
-                        help="Whether to generate simulation YAML or inference JSON"
-                    )
 
     parser.add_argument("--config_file",
                         "-c",
@@ -304,8 +214,5 @@ if __name__ == "__main__":
         "experiment_number": args.experiment_number
     }
 
-    if args.mode == "simulate":
-        create_hypoexp_sim_config(query_workload)
-
-    elif args.mode == "infer":
-        create_hypoexp_inference_config(query_workload)
+    # Always generate simulation config
+    create_hypoexp_sim_config(query_workload)
