@@ -51,3 +51,7 @@ This repo is aligned with the paper "Extending Causal Metamodeling to a Non-Mark
 - `data/` — generated simulation and ground-truth data.
 - `output/` — query results from inference.
 - `figures/` — generated plots and comparison figures.
+
+## Documentation
+
+- [`README_detailed.md`](README_detailed.md) — full pipeline reference: config key descriptions, per-script usage patterns, and cluster execution guide.
