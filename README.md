@@ -41,7 +41,7 @@ This repo is aligned with the paper "Extending Causal Metamodeling to a Non-Mark
    python src_gamma/inference.py -c config/gamma_query_workload_exp-1.json -e 1 -d <dbn_name> -t config/gamma_hypoexp_time_discretization.yaml
    ```
 
-7. For exact script details and configuration references, see `README_detailed.md`.
+7. For exact script details and configuration references, see [`README_detailed.md`](README_detailed.md).
 
 ## Repository structure
 
