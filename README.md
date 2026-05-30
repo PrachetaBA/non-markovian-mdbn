@@ -1,4 +1,4 @@
-# erlang-queue-mdbn
+# Description
 
 This repository contains research code for causal metamodeling of queueing systems using modular dynamic Bayesian networks (MDBNs). It implements a pipeline for simulating queues, approximating non-Markovian arrival distributions with phase-type / hypoexponential representations, constructing discrete-time DBNs, and answering probabilistic and causal queries.
 
