@@ -36,12 +36,12 @@ This repo is aligned with the paper "Extending Causal Metamodeling to a Non-Mark
    python src_gamma/construct_dbn.py -c config/gamma_hypoexp_construct_dbn.yaml -e 1 -s config/hypoexp_gamma_simulator.yaml -t config/gamma_hypoexp_time_discretization.yaml
    ```
 
-5. Run inference on the constructed DBN:
+6. Run inference on the constructed DBN:
    ```bash
-   python src_gamma/inference.py -c config/hypoexp_query.json -e 1 -d <dbn_name> -t config/gamma_hypoexp_time_discretization.yaml
+   python src_gamma/inference.py -c config/gamma_query_workload_exp-1.json -e 1 -d <dbn_name> -t config/gamma_hypoexp_time_discretization.yaml
    ```
 
-6. For exact script details and configuration references, see `README_detailed.md`.
+7. For exact script details and configuration references, see `README_detailed.md`.
 
 ## Repository structure
 
@@ -50,5 +50,4 @@ This repo is aligned with the paper "Extending Causal Metamodeling to a Non-Mark
 - `cluster/` — SLURM wrapper scripts for running the pipeline on cluster nodes.
 - `data/` — generated simulation and ground-truth data.
 - `output/` — query results from inference.
-- `results/` — additional evaluation outputs.
 - `figures/` — generated plots and comparison figures.

@@ -42,7 +42,7 @@ The configs use these keys:
 - `max_iql` — maximum queuelength
 - distribution-specific keys such as `arrival_distributions`, `ALPHAS`, `B_BETAS`, `phase_rates`, etc.
 - `output_folder` — where to store the results
-- `service_rates` — service rate follows expenontial distribution
+- `service_rates` — service rate follows exponential distribution
 
 
 ## Distribution-specific source branches
