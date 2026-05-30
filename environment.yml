@@ -52,4 +52,3 @@ dependencies:
     - six==1.16.0
     - tomli==2.0.1
     - tqdm==4.66.2
-prefix: /home/pboddavarama_umass_edu/.conda/envs/mdbn-pyagrum

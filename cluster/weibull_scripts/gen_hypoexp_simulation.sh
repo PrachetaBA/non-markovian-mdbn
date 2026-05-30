@@ -9,5 +9,5 @@
 module load conda/latest
 conda activate erm1-mdbn
 
-cd /scratch4/workspace/pboddavarama_umass_edu-erlang-mdbn/anant/erlang-queue-mdbn
+cd "$SLURM_SUBMIT_DIR"
 python -u src_weibull/simulator.py --config_file $1 --experiment_number $2

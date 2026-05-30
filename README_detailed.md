@@ -110,7 +110,7 @@ Typical output locations are:
 
 ## Cluster scripts
 
-The `cluster/` directory contains wrappers for batch execution of the pipeline on cluster nodes. Example directories include:
+The `cluster/` directory contains wrappers for batch execution of the pipeline on HPC clusters using Slurm. Example directories include:
 - `cluster/beta_scripts/`
 - `cluster/gamma_scripts/`
 - `cluster/weibull_scripts/`
